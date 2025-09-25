@@ -1,23 +1,39 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loan Calculator - Firebase App</title>
+    <title>Advanced Loan Calculator - Portfolio Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
                         primary: '#0078D4',
-                        'primary-dark': '#005ea2'
+                        'primary-dark': '#005ea2',
+                        success: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444'
                     }
                 }
             }
         }
     </script>
+    <style>
+        .chart-container { position: relative; height: 300px; }
+        .progress-bar { transition: width 0.5s ease-in-out; }
+        .calendar-day { min-height: 120px; }
+        .milestone-marker { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Loading Spinner -->
@@ -30,10 +46,10 @@
         <div class="max-w-md w-full space-y-8">
             <div>
                 <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                    Loan Calculator
+                    Advanced Loan Calculator
                 </h2>
                 <p class="mt-2 text-center text-sm text-gray-600">
-                    Sign in to calculate and save your loan amortization schedules
+                    Manage your loan portfolio with advanced analytics
                 </p>
             </div>
             <div class="mt-8 space-y-6">
@@ -54,11 +70,19 @@
     <!-- Main App Screen -->
     <div id="appScreen" class="hidden">
         <!-- Header -->
-        <header class="bg-white shadow-sm border-b border-gray-200">
+        <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center py-4">
-                    <h1 class="text-2xl font-bold text-gray-900">Loan Calculator</h1>
+                    <h1 class="text-2xl font-bold text-gray-900">Loan Portfolio Manager</h1>
                     <div class="flex items-center space-x-4">
+                        <!-- Navigation Tabs -->
+                        <div class="hidden md:flex space-x-1">
+                            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+                            <button class="nav-tab" data-tab="calculator">Calculator</button>
+                            <button class="nav-tab" data-tab="portfolio">Portfolio</button>
+                            <button class="nav-tab" data-tab="analytics">Analytics</button>
+                            <button class="nav-tab" data-tab="calendar">Calendar</button>
+                        </div>
                         <span id="userEmail" class="text-sm text-gray-600"></span>
                         <button id="signOutBtn" class="text-sm text-primary hover:text-primary-dark">Sign Out</button>
                     </div>
@@ -66,126 +90,411 @@
             </div>
         </header>
 
-        <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Input Form -->
-                <div class="lg:col-span-1">
+        <!-- Dashboard Tab -->
+        <div id="dashboardTab" class="tab-content">
+            <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Loan Details</h2>
-                        <div class="space-y-4">
-                            <div>
-                                <label for="calculationName" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Calculation Name (Optional)
-                                </label>
-                                <input type="text" id="calculationName" 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                                       placeholder="e.g., Home Loan, Car Loan">
+                        <div class="flex items-center">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-500">Total Debt</p>
+                                <p id="totalDebt" class="text-2xl font-bold text-gray-900">₹0</p>
                             </div>
-                            
-                            <div>
-                                <label for="loanAmount" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Loan Amount (₹)
-                                </label>
-                                <input type="number" id="loanAmount" value="250000"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                            </div>
-                            
-                            <div>
-                                <label for="monthlyEMI" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Monthly EMI (₹)
-                                </label>
-                                <input type="number" id="monthlyEMI" value="6000"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                            </div>
-                            
-                            <div>
-                                <label for="monthlyRate" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Monthly Interest Rate (%)
-                                </label>
-                                <input type="number" id="monthlyRate" value="1" step="0.01"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                            </div>
-                            
-                            <div class="flex space-x-2">
-                                <button id="generateBtn" 
-                                        class="flex-1 bg-primary text-white py-2 px-4 rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition duration-150 ease-in-out">
-                                    Generate Schedule
-                                </button>
-                                <button id="saveBtn" 
-                                        class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled>
-                                    Save
-                                </button>
+                            <div class="ml-4 flex-shrink-0">
+                                <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                                    <span class="text-red-600 font-bold">₹</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Saved Calculations -->
-                    <div class="bg-white rounded-lg shadow p-6 mt-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Saved Calculations</h2>
-                        <div id="savedCalculations" class="space-y-2">
-                            <p class="text-gray-500 text-sm">No saved calculations yet.</p>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-500">Monthly Payment</p>
+                                <p id="totalMonthlyPayment" class="text-2xl font-bold text-gray-900">₹0</p>
+                            </div>
+                            <div class="ml-4 flex-shrink-0">
+                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span class="text-blue-600 font-bold">📅</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-500">Total Interest</p>
+                                <p id="totalInterestDashboard" class="text-2xl font-bold text-gray-900">₹0</p>
+                            </div>
+                            <div class="ml-4 flex-shrink-0">
+                                <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                                    <span class="text-yellow-600 font-bold">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-500">Avg. Payoff Time</p>
+                                <p id="avgPayoffTime" class="text-2xl font-bold text-gray-900">0 mo</p>
+                            </div>
+                            <div class="ml-4 flex-shrink-0">
+                                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                    <span class="text-green-600 font-bold">⏰</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Results Table -->
-                <div class="lg:col-span-2">
-                    <div class="bg-white rounded-lg shadow overflow-hidden">
-                        <div class="px-6 py-4 border-b border-gray-200">
-                            <h2 class="text-lg font-semibold text-gray-900">Amortization Schedule</h2>
-                            <div id="summaryStats" class="mt-2 hidden">
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                    <div>
-                                        <span class="text-gray-500">Total Interest:</span>
-                                        <span id="totalInterest" class="font-semibold text-red-600 ml-1">₹0</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-500">Total Amount:</span>
-                                        <span id="totalAmount" class="font-semibold text-gray-900 ml-1">₹0</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-500">Duration:</span>
-                                        <span id="loanDuration" class="font-semibold text-blue-600 ml-1">0 months</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-500">Last Updated:</span>
-                                        <span id="lastUpdated" class="font-semibold text-gray-600 ml-1">--</span>
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Debt Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="debtDistributionChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Payment Timeline</h3>
+                        <div class="chart-container">
+                            <canvas id="paymentTimelineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Tracking -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Loan Progress</h3>
+                        <button id="addGoalBtn" class="text-sm bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark">
+                            Add Goal
+                        </button>
+                    </div>
+                    <div id="progressSection" class="space-y-4">
+                        <p class="text-gray-500">Add loans to see progress tracking</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Calculator Tab -->
+        <div id="calculatorTab" class="tab-content hidden">
+            <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Input Form -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h2 class="text-lg font-semibold text-gray-900 mb-4">Loan Calculator</h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="calculationName" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Loan Name
+                                    </label>
+                                    <input type="text" id="calculationName" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                           placeholder="e.g., Home Loan, Car Loan">
+                                </div>
+                                
+                                <div>
+                                    <label for="loanAmount" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Loan Amount (₹)
+                                    </label>
+                                    <input type="number" id="loanAmount" value="250000"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                
+                                <div>
+                                    <label for="monthlyEMI" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Monthly EMI (₹)
+                                    </label>
+                                    <input type="number" id="monthlyEMI" value="6000"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                
+                                <div>
+                                    <label for="monthlyRate" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Monthly Interest Rate (%)
+                                    </label>
+                                    <input type="number" id="monthlyRate" value="1" step="0.01"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+
+                                <div>
+                                    <label for="extraPayment" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Extra Monthly Payment (₹)
+                                    </label>
+                                    <input type="number" id="extraPayment" value="0"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                
+                                <div class="flex space-x-2">
+                                    <button id="generateBtn" 
+                                            class="flex-1 bg-primary text-white py-2 px-4 rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition duration-150 ease-in-out">
+                                        Generate Schedule
+                                    </button>
+                                    <button id="saveBtn" 
+                                            class="flex-1 bg-success text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled>
+                                        Save Loan
+                                    </button>
+                                </div>
+
+                                <!-- Export Options -->
+                                <div class="border-t pt-4">
+                                    <h3 class="text-sm font-medium text-gray-700 mb-2">Export Options</h3>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button id="exportPdfBtn" class="bg-red-500 text-white py-2 px-3 rounded-md text-sm hover:bg-red-600 disabled:opacity-50" disabled>
+                                            Export PDF
+                                        </button>
+                                        <button id="exportExcelBtn" class="bg-green-600 text-white py-2 px-3 rounded-md text-sm hover:bg-green-700 disabled:opacity-50" disabled>
+                                            Export Excel
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="overflow-x-auto max-h-96">
-                            <table id="scheduleTable" class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50 sticky top-0">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
-                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">EMI (₹)</th>
-                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Interest (₹)</th>
-                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Principal (₹)</th>
-                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance (₹)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="scheduleBody" class="bg-white divide-y divide-gray-200">
-                                    <tr>
-                                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
-                                            Click "Generate Schedule" to see the amortization table
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+
+                        <!-- Cash Flow Analysis -->
+                        <div class="bg-white rounded-lg shadow p-6 mt-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Cash Flow Analysis</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="monthlyIncome" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Monthly Income (₹)
+                                    </label>
+                                    <input type="number" id="monthlyIncome" value="50000"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="otherExpenses" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Other Monthly Expenses (₹)
+                                    </label>
+                                    <input type="number" id="otherExpenses" value="20000"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <button id="analyzeCashFlowBtn" class="w-full bg-warning text-white py-2 px-4 rounded-md hover:bg-yellow-600">
+                                    Analyze Cash Flow
+                                </button>
+                                <div id="cashFlowResults" class="hidden mt-4 p-4 bg-gray-50 rounded-md">
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex justify-between">
+                                            <span>Available for Loans:</span>
+                                            <span id="availableForLoans" class="font-semibold">₹0</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span>Debt-to-Income Ratio:</span>
+                                            <span id="debtToIncomeRatio" class="font-semibold">0%</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span>Financial Health:</span>
+                                            <span id="financialHealth" class="font-semibold">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div class="lg:col-span-2">
+                        <!-- Chart Section -->
+                        <div class="bg-white rounded-lg shadow p-6 mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Payment Breakdown</h3>
+                            <div class="chart-container">
+                                <canvas id="paymentBreakdownChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Schedule Table -->
+                        <div class="bg-white rounded-lg shadow overflow-hidden">
+                            <div class="px-6 py-4 border-b border-gray-200">
+                                <h2 class="text-lg font-semibold text-gray-900">Amortization Schedule</h2>
+                                <div id="summaryStats" class="mt-2 hidden">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                        <div>
+                                            <span class="text-gray-500">Total Interest:</span>
+                                            <span id="totalInterest" class="font-semibold text-red-600 ml-1">₹0</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-500">Total Amount:</span>
+                                            <span id="totalAmount" class="font-semibold text-gray-900 ml-1">₹0</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-500">Duration:</span>
+                                            <span id="loanDuration" class="font-semibold text-blue-600 ml-1">0 months</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-500">Savings with Extra Payment:</span>
+                                            <span id="extraPaymentSavings" class="font-semibold text-green-600 ml-1">₹0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto max-h-96">
+                                <table id="scheduleTable" class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">EMI (₹)</th>
+                                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Interest (₹)</th>
+                                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Principal (₹)</th>
+                                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance (₹)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="scheduleBody" class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                                Click "Generate Schedule" to see the amortization table
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </main>
+        </div>
+
+        <!-- Portfolio Tab -->
+        <div id="portfolioTab" class="tab-content hidden">
+            <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">Loan Portfolio</h2>
+                    <div class="flex space-x-2">
+                        <button id="debtAvalancheBtn" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm">
+                            Debt Avalanche
+                        </button>
+                        <button id="debtSnowballBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 text-sm">
+                            Debt Snowball
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Strategy Results -->
+                <div id="strategyResults" class="hidden bg-white rounded-lg shadow p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Optimal Payoff Strategy</h3>
+                    <div id="strategyContent"></div>
+                </div>
+
+                <!-- Portfolio Grid -->
+                <div id="portfolioGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="text-center py-12 text-gray-500 col-span-full">
+                        No loans in portfolio. Add loans from the calculator to see them here.
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analyticsTab" class="tab-content hidden">
+            <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Advanced Analytics</h2>
+                
+                <!-- Analytics Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Interest vs Principal Over Time</h3>
+                        <div class="chart-container">
+                            <canvas id="interestPrincipalChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Loan Comparison</h3>
+                        <div class="chart-container">
+                            <canvas id="loanComparisonChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Ratios -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Financial Health Indicators</h3>
+                    <div id="financialRatios" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="text-center py-8 text-gray-500 col-span-full">
+                            Add income information in Cash Flow Analysis to see financial ratios
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Calendar Tab -->
+        <div id="calendarTab" class="tab-content hidden">
+            <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">Payment Calendar</h2>
+                    <div class="flex items-center space-x-4">
+                        <button id="prevMonth" class="text-primary hover:text-primary-dark">← Previous</button>
+                        <span id="currentMonth" class="font-semibold text-lg"></span>
+                        <button id="nextMonth" class="text-primary hover:text-primary-dark">Next →</button>
+                    </div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="grid grid-cols-7 divide-x divide-gray-200 bg-gray-50">
+                        <div class="px-4 py-2 text-center text-sm font-medium text-gray-500">Sun</div>
+                        <div class="px-4 py-2 text-center text-sm font-medium text-gray-500">Mon</div>
+                        <div class="px-4 py-2 text-center text-sm font-medium text-gray-500">Tue</div>
+                        <div class="px-4 py-2 text-center text-sm font-medium text-gray-500">Wed</div>
+                        <div class="px-4 py-2 text-center text-sm font-medium text-gray-500">Thu</div>
+                        <div class="px-4 py-2 text-center text-sm font-medium text-gray-500">Fri</div>
+                        <div class="px-4 py-2 text-center text-sm font-medium text-gray-500">Sat</div>
+                    </div>
+                    <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-gray-200">
+                        <!-- Calendar days will be generated here -->
+                    </div>
+                </div>
+
+                <!-- Upcoming Payments -->
+                <div class="bg-white rounded-lg shadow p-6 mt-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Upcoming Payments</h3>
+                    <div id="upcomingPayments" class="space-y-3">
+                        <p class="text-gray-500">No upcoming payments scheduled</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Goal Setting Modal -->
+    <div id="goalModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Set Payoff Goal</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="goalLoanSelect" class="block text-sm font-medium text-gray-700 mb-2">Select Loan</label>
+                    <select id="goalLoanSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="">Select a loan...</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="goalDate" class="block text-sm font-medium text-gray-700 mb-2">Target Payoff Date</label>
+                    <input type="date" id="goalDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+                </div>
+                <div class="flex space-x-3">
+                    <button id="saveGoalBtn" class="flex-1 bg-primary text-white py-2 px-4 rounded-md hover:bg-primary-dark">Save Goal</button>
+                    <button id="cancelGoalBtn" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400">Cancel</button>
+                </div>
             </div>
-        </main>
+        </div>
     </div>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -207,6 +516,31 @@
         // Global variables
         let currentUser = null;
         let currentSchedule = [];
+        let allLoans = [];
+        let currentDate = new Date();
+        let charts = {};
+
+        // CSS for navigation tabs
+        const style = document.createElement('style');
+        style.textContent = `
+            .nav-tab {
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 500;
+                transition: all 0.2s;
+                color: #6B7280;
+            }
+            .nav-tab:hover {
+                background-color: #F3F4F6;
+                color: #374151;
+            }
+            .nav-tab.active {
+                background-color: #0078D4;
+                color: white;
+            }
+        `;
+        document.head.appendChild(style);
 
         // DOM elements
         const loadingEl = document.getElementById('loading');
@@ -215,8 +549,6 @@
         const googleSignInBtn = document.getElementById('googleSignIn');
         const signOutBtn = document.getElementById('signOutBtn');
         const userEmailEl = document.getElementById('userEmail');
-        const generateBtn = document.getElementById('generateBtn');
-        const saveBtn = document.getElementById('saveBtn');
 
         // Authentication state listener
         onAuthStateChanged(auth, (user) => {
@@ -226,7 +558,7 @@
                 userEmailEl.textContent = user.email;
                 loginScreenEl.classList.add('hidden');
                 appScreenEl.classList.remove('hidden');
-                loadSavedCalculations();
+                loadAllData();
             } else {
                 currentUser = null;
                 appScreenEl.classList.add('hidden');
@@ -234,7 +566,7 @@
             }
         });
 
-        // Google Sign In
+        // Authentication handlers
         googleSignInBtn.addEventListener('click', async () => {
             try {
                 await signInWithPopup(auth, provider);
@@ -244,7 +576,6 @@
             }
         });
 
-        // Sign Out
         signOutBtn.addEventListener('click', async () => {
             try {
                 await signOut(auth);
@@ -253,42 +584,63 @@
             }
         });
 
-        // Generate Schedule
-        generateBtn.addEventListener('click', () => {
+        // Tab Navigation
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                switchTab(tabName);
+            });
+        });
+
+        function switchTab(tabName) {
+            // Update active tab
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+
+            // Show selected tab
+            document.getElementById(`${tabName}Tab`).classList.remove('hidden');
+
+            // Initialize tab-specific functionality
+            if (tabName === 'calendar') {
+                initializeCalendar();
+            } else if (tabName === 'analytics') {
+                initializeAnalytics();
+            }
+        }
+
+        // Load all data
+        async function loadAllData() {
+            await loadAllLoans();
+            updateDashboard();
+            updatePortfolio();
+        }
+
+        // Calculator functionality
+        document.getElementById('generateBtn').addEventListener('click', () => {
             generateSchedule();
         });
 
-        // Save Calculation
-        saveBtn.addEventListener('click', async () => {
-            if (!currentSchedule.length) {
-                alert('Please generate a schedule first.');
-                return;
-            }
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            await saveLoan();
+        });
 
-            const calculationName = document.getElementById('calculationName').value.trim();
-            const loanAmount = parseFloat(document.getElementById('loanAmount').value);
-            const monthlyEMI = parseFloat(document.getElementById('monthlyEMI').value);
-            const monthlyRate = parseFloat(document.getElementById('monthlyRate').value);
+        document.getElementById('exportPdfBtn').addEventListener('click', () => {
+            exportToPDF();
+        });
 
-            try {
-                const docRef = await addDoc(collection(db, 'users', currentUser.uid, 'loanCalculations'), {
-                    name: calculationName || `Calculation ${new Date().toLocaleDateString()}`,
-                    loanAmount,
-                    monthlyEMI,
-                    monthlyRate,
-                    schedule: currentSchedule,
-                    createdAt: new Date(),
-                    totalInterest: calculateTotalInterest(),
-                    duration: currentSchedule.length
-                });
+        document.getElementById('exportExcelBtn').addEventListener('click', () => {
+            exportToExcel();
+        });
 
-                alert('Calculation saved successfully!');
-                document.getElementById('calculationName').value = '';
-                loadSavedCalculations();
-            } catch (error) {
-                console.error('Save error:', error);
-                alert('Failed to save calculation. Please try again.');
-            }
+        document.getElementById('analyzeCashFlowBtn').addEventListener('click', () => {
+            analyzeCashFlow();
         });
 
         // Generate Schedule Function
@@ -296,22 +648,27 @@
             const loanAmount = parseFloat(document.getElementById('loanAmount').value);
             const monthlyEMI = parseFloat(document.getElementById('monthlyEMI').value);
             const monthlyRate = parseFloat(document.getElementById('monthlyRate').value) / 100;
+            const extraPayment = parseFloat(document.getElementById('extraPayment').value) || 0;
 
             if (!loanAmount || !monthlyEMI || !monthlyRate) {
-                alert('Please fill in all fields with valid numbers.');
+                alert('Please fill in all required fields with valid numbers.');
                 return;
             }
 
             let balance = loanAmount;
             let month = 1;
             currentSchedule = [];
+            const totalEMI = monthlyEMI + extraPayment;
+
+            // Calculate schedule without extra payment for comparison
+            let normalSchedule = calculateNormalSchedule(loanAmount, monthlyEMI, monthlyRate);
 
             const tbody = document.getElementById('scheduleBody');
             tbody.innerHTML = '';
 
             while (balance > 0 && month <= 600) {
                 const interest = balance * monthlyRate;
-                let principal = monthlyEMI - interest;
+                let principal = totalEMI - interest;
                 
                 if (principal > balance) {
                     principal = balance;
@@ -321,7 +678,7 @@
                 
                 const scheduleItem = {
                     month,
-                    emi: monthlyEMI,
+                    emi: totalEMI,
                     interest: interest,
                     principal: principal,
                     balance: balance > 0 ? balance : 0
@@ -333,7 +690,7 @@
                 row.className = month % 2 === 0 ? 'bg-gray-50' : 'bg-white';
                 row.innerHTML = `
                     <td class="px-6 py-2 text-sm text-gray-900">${month}</td>
-                    <td class="px-6 py-2 text-sm text-gray-900 text-right">₹${monthlyEMI.toFixed(2)}</td>
+                    <td class="px-6 py-2 text-sm text-gray-900 text-right">₹${totalEMI.toFixed(2)}</td>
                     <td class="px-6 py-2 text-sm text-red-600 text-right">₹${interest.toFixed(2)}</td>
                     <td class="px-6 py-2 text-sm text-green-600 text-right">₹${principal.toFixed(2)}</td>
                     <td class="px-6 py-2 text-sm text-gray-900 text-right">₹${(balance > 0 ? balance : 0).toFixed(2)}</td>
@@ -342,124 +699,942 @@
                 month++;
             }
 
-            // Update summary statistics
-            updateSummaryStats();
-            saveBtn.disabled = false;
+            updateSummaryStats(normalSchedule);
+            updatePaymentBreakdownChart();
+            document.getElementById('saveBtn').disabled = false;
+            document.getElementById('exportPdfBtn').disabled = false;
+            document.getElementById('exportExcelBtn').disabled = false;
         }
 
-        // Update Summary Statistics
-        function updateSummaryStats() {
+        function calculateNormalSchedule(loanAmount, monthlyEMI, monthlyRate) {
+            let balance = loanAmount;
+            let month = 1;
+            let schedule = [];
+            let totalInterest = 0;
+
+            while (balance > 0 && month <= 600) {
+                const interest = balance * monthlyRate;
+                let principal = monthlyEMI - interest;
+                
+                if (principal > balance) {
+                    principal = balance;
+                }
+                
+                balance -= principal;
+                totalInterest += interest;
+                
+                schedule.push({
+                    month,
+                    interest: totalInterest
+                });
+                
+                month++;
+            }
+
+            return { totalInterest, duration: schedule.length };
+        }
+
+        function updateSummaryStats(normalSchedule) {
             const totalInterest = calculateTotalInterest();
             const loanAmount = parseFloat(document.getElementById('loanAmount').value);
+            const extraPayment = parseFloat(document.getElementById('extraPayment').value) || 0;
             
+            let savings = 0;
+            if (extraPayment > 0 && normalSchedule) {
+                savings = normalSchedule.totalInterest - totalInterest;
+            }
+
             document.getElementById('totalInterest').textContent = `₹${totalInterest.toFixed(2)}`;
             document.getElementById('totalAmount').textContent = `₹${(loanAmount + totalInterest).toFixed(2)}`;
             document.getElementById('loanDuration').textContent = `${currentSchedule.length} months`;
-            document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+            document.getElementById('extraPaymentSavings').textContent = `₹${savings.toFixed(2)}`;
             document.getElementById('summaryStats').classList.remove('hidden');
         }
 
-        // Calculate Total Interest
         function calculateTotalInterest() {
             return currentSchedule.reduce((total, item) => total + item.interest, 0);
         }
 
-        // Load Saved Calculations
-        async function loadSavedCalculations() {
-            try {
-                const q = query(
-                    collection(db, 'users', currentUser.uid, 'loanCalculations'),
-                    orderBy('createdAt', 'desc')
-                );
-                const querySnapshot = await getDocs(q);
-                
-                const savedCalculationsEl = document.getElementById('savedCalculations');
-                
-                if (querySnapshot.empty) {
-                    savedCalculationsEl.innerHTML = '<p class="text-gray-500 text-sm">No saved calculations yet.</p>';
-                    return;
-                }
-
-                let html = '';
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    html += `
-                        <div class="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer" onclick="loadCalculation('${doc.id}')">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <h4 class="font-medium text-gray-900">${data.name}</h4>
-                                    <p class="text-sm text-gray-600">₹${data.loanAmount.toLocaleString()} • ${data.duration} months</p>
-                                    <p class="text-xs text-gray-500">${new Date(data.createdAt.seconds * 1000).toLocaleDateString()}</p>
-                                </div>
-                                <button onclick="event.stopPropagation(); deleteCalculation('${doc.id}')" 
-                                        class="text-red-500 hover:text-red-700 text-sm">Delete</button>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                savedCalculationsEl.innerHTML = html;
-            } catch (error) {
-                console.error('Load calculations error:', error);
+        // Save Loan Function
+        async function saveLoan() {
+            if (!currentSchedule.length) {
+                alert('Please generate a schedule first.');
+                return;
             }
-        }
 
-        // Load Calculation (make it global)
-        window.loadCalculation = async function(docId) {
-            try {
-                const q = query(collection(db, 'users', currentUser.uid, 'loanCalculations'));
-                const querySnapshot = await getDocs(q);
-                
-                querySnapshot.forEach((doc) => {
-                    if (doc.id === docId) {
-                        const data = doc.data();
-                        document.getElementById('calculationName').value = data.name;
-                        document.getElementById('loanAmount').value = data.loanAmount;
-                        document.getElementById('monthlyEMI').value = data.monthlyEMI;
-                        document.getElementById('monthlyRate').value = data.monthlyRate;
-                        
-                        // Load the schedule
-                        currentSchedule = data.schedule;
-                        const tbody = document.getElementById('scheduleBody');
-                        tbody.innerHTML = '';
-                        
-                        data.schedule.forEach((item, index) => {
-                            const row = document.createElement('tr');
-                            row.className = (index + 1) % 2 === 0 ? 'bg-gray-50' : 'bg-white';
-                            row.innerHTML = `
-                                <td class="px-6 py-2 text-sm text-gray-900">${item.month}</td>
-                                <td class="px-6 py-2 text-sm text-gray-900 text-right">₹${item.emi.toFixed(2)}</td>
-                                <td class="px-6 py-2 text-sm text-red-600 text-right">₹${item.interest.toFixed(2)}</td>
-                                <td class="px-6 py-2 text-sm text-green-600 text-right">₹${item.principal.toFixed(2)}</td>
-                                <td class="px-6 py-2 text-sm text-gray-900 text-right">₹${item.balance.toFixed(2)}</td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-                        
-                        updateSummaryStats();
-                        saveBtn.disabled = false;
-                    }
-                });
-            } catch (error) {
-                console.error('Load calculation error:', error);
-                alert('Failed to load calculation.');
-            }
-        };
+            const calculationName = document.getElementById('calculationName').value.trim();
+            const loanAmount = parseFloat(document.getElementById('loanAmount').value);
+            const monthlyEMI = parseFloat(document.getElementById('monthlyEMI').value);
+            const monthlyRate = parseFloat(document.getElementById('monthlyRate').value);
+            const extraPayment = parseFloat(document.getElementById('extraPayment').value) || 0;
 
-        // Delete Calculation (make it global)
-        window.deleteCalculation = async function(docId) {
-            if (!confirm('Are you sure you want to delete this calculation?')) {
+            if (!calculationName) {
+                alert('Please provide a loan name.');
                 return;
             }
 
             try {
-                await deleteDoc(doc(db, 'users', currentUser.uid, 'loanCalculations', docId));
-                loadSavedCalculations();
+                const docRef = await addDoc(collection(db, 'users', currentUser.uid, 'loans'), {
+                    name: calculationName,
+                    loanAmount,
+                    monthlyEMI,
+                    monthlyRate,
+                    extraPayment,
+                    schedule: currentSchedule,
+                    createdAt: new Date(),
+                    totalInterest: calculateTotalInterest(),
+                    duration: currentSchedule.length,
+                    isActive: true
+                });
+
+                alert('Loan saved successfully!');
+                document.getElementById('calculationName').value = '';
+                await loadAllData();
             } catch (error) {
-                console.error('Delete calculation error:', error);
-                alert('Failed to delete calculation.');
+                console.error('Save error:', error);
+                alert('Failed to save loan. Please try again.');
+            }
+        }
+
+        // Load all loans
+        async function loadAllLoans() {
+            try {
+                const q = query(
+                    collection(db, 'users', currentUser.uid, 'loans'),
+                    orderBy('createdAt', 'desc')
+                );
+                const querySnapshot = await getDocs(q);
+                
+                allLoans = [];
+                querySnapshot.forEach((doc) => {
+                    allLoans.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+            } catch (error) {
+                console.error('Load loans error:', error);
+            }
+        }
+
+        // Update Dashboard
+        function updateDashboard() {
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+            
+            // Calculate totals
+            const totalDebt = activeLoans.reduce((sum, loan) => {
+                const currentBalance = loan.schedule && loan.schedule.length > 0 
+                    ? loan.schedule[loan.schedule.length - 1]?.balance || loan.loanAmount 
+                    : loan.loanAmount;
+                return sum + currentBalance;
+            }, 0);
+
+            const totalMonthlyPayment = activeLoans.reduce((sum, loan) => {
+                return sum + loan.monthlyEMI + (loan.extraPayment || 0);
+            }, 0);
+
+            const totalInterest = activeLoans.reduce((sum, loan) => {
+                return sum + (loan.totalInterest || 0);
+            }, 0);
+
+            const avgPayoffTime = activeLoans.length > 0 
+                ? Math.round(activeLoans.reduce((sum, loan) => sum + loan.duration, 0) / activeLoans.length)
+                : 0;
+
+            // Update dashboard cards
+            document.getElementById('totalDebt').textContent = `₹${totalDebt.toLocaleString()}`;
+            document.getElementById('totalMonthlyPayment').textContent = `₹${totalMonthlyPayment.toLocaleString()}`;
+            document.getElementById('totalInterestDashboard').textContent = `₹${totalInterest.toLocaleString()}`;
+            document.getElementById('avgPayoffTime').textContent = `${avgPayoffTime} mo`;
+
+            // Update charts
+            updateDebtDistributionChart();
+            updatePaymentTimelineChart();
+            updateProgressSection();
+        }
+
+        // Chart Functions
+        function updateDebtDistributionChart() {
+            const ctx = document.getElementById('debtDistributionChart').getContext('2d');
+            
+            if (charts.debtDistribution) {
+                charts.debtDistribution.destroy();
+            }
+
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+            if (activeLoans.length === 0) {
+                return;
+            }
+
+            const data = activeLoans.map(loan => ({
+                name: loan.name,
+                amount: loan.loanAmount
+            }));
+
+            charts.debtDistribution = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.name),
+                    datasets: [{
+                        data: data.map(d => d.amount),
+                        backgroundColor: [
+                            '#0078D4', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+                            '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePaymentTimelineChart() {
+            const ctx = document.getElementById('paymentTimelineChart').getContext('2d');
+            
+            if (charts.paymentTimeline) {
+                charts.paymentTimeline.destroy();
+            }
+
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+            if (activeLoans.length === 0) {
+                return;
+            }
+
+            // Create timeline data for next 12 months
+            const months = [];
+            const currentDate = new Date();
+            
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+                months.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+            }
+
+            const datasets = activeLoans.map((loan, index) => ({
+                label: loan.name,
+                data: months.map(() => loan.monthlyEMI + (loan.extraPayment || 0)),
+                backgroundColor: [
+                    '#0078D4', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'
+                ][index % 5],
+                stack: 'payments'
+            }));
+
+            charts.paymentTimeline = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePaymentBreakdownChart() {
+            const ctx = document.getElementById('paymentBreakdownChart').getContext('2d');
+            
+            if (charts.paymentBreakdown) {
+                charts.paymentBreakdown.destroy();
+            }
+
+            if (currentSchedule.length === 0) {
+                return;
+            }
+
+            // Sample data points (every 6 months)
+            const sampleIndices = [];
+            for (let i = 0; i < currentSchedule.length; i += 6) {
+                sampleIndices.push(i);
+            }
+            if (sampleIndices[sampleIndices.length - 1] !== currentSchedule.length - 1) {
+                sampleIndices.push(currentSchedule.length - 1);
+            }
+
+            const labels = sampleIndices.map(i => `Month ${currentSchedule[i].month}`);
+            const principalData = sampleIndices.map(i => currentSchedule[i].principal);
+            const interestData = sampleIndices.map(i => currentSchedule[i].interest);
+
+            charts.paymentBreakdown = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Principal',
+                            data: principalData,
+                            backgroundColor: '#10B981',
+                            stack: 'payments'
+                        },
+                        {
+                            label: 'Interest',
+                            data: interestData,
+                            backgroundColor: '#EF4444',
+                            stack: 'payments'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Progress Section
+        function updateProgressSection() {
+            const progressSection = document.getElementById('progressSection');
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+
+            if (activeLoans.length === 0) {
+                progressSection.innerHTML = '<p class="text-gray-500">Add loans to see progress tracking</p>';
+                return;
+            }
+
+            let html = '';
+            activeLoans.forEach(loan => {
+                const originalAmount = loan.loanAmount;
+                const currentBalance = loan.schedule && loan.schedule.length > 0 
+                    ? loan.schedule[loan.schedule.length - 1]?.balance || originalAmount 
+                    : originalAmount;
+                const progress = ((originalAmount - currentBalance) / originalAmount) * 100;
+
+                html += `
+                    <div class="border rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-medium text-gray-900">${loan.name}</h4>
+                            <span class="text-sm text-gray-500">${progress.toFixed(1)}% paid</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                            <div class="bg-green-600 h-2 rounded-full progress-bar" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>Remaining: ₹${currentBalance.toLocaleString()}</span>
+                            <span>Duration: ${loan.duration} months</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            progressSection.innerHTML = html;
+        }
+
+        // Portfolio Management
+        function updatePortfolio() {
+            const portfolioGrid = document.getElementById('portfolioGrid');
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+
+            if (activeLoans.length === 0) {
+                portfolioGrid.innerHTML = `
+                    <div class="text-center py-12 text-gray-500 col-span-full">
+                        No loans in portfolio. Add loans from the calculator to see them here.
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            activeLoans.forEach(loan => {
+                const originalAmount = loan.loanAmount;
+                const currentBalance = loan.schedule && loan.schedule.length > 0 
+                    ? loan.schedule[loan.schedule.length - 1]?.balance || originalAmount 
+                    : originalAmount;
+                const progress = ((originalAmount - currentBalance) / originalAmount) * 100;
+
+                html += `
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">${loan.name}</h3>
+                            <button onclick="deleteLoan('${loan.id}')" class="text-red-500 hover:text-red-700">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Original Amount:</span>
+                                <span class="font-medium">₹${originalAmount.toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Current Balance:</span>
+                                <span class="font-medium">₹${currentBalance.toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Monthly Payment:</span>
+                                <span class="font-medium">₹${(loan.monthlyEMI + (loan.extraPayment || 0)).toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Interest Rate:</span>
+                                <span class="font-medium">${loan.monthlyRate}% monthly</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Duration:</span>
+                                <span class="font-medium">${loan.duration} months</span>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-500">Progress:</span>
+                                    <span class="font-medium">${progress.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-green-600 h-2 rounded-full progress-bar" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            portfolioGrid.innerHTML = html;
+        }
+
+        // Debt Strategy Analysis
+        document.getElementById('debtAvalancheBtn').addEventListener('click', () => {
+            calculateDebtStrategy('avalanche');
+        });
+
+        document.getElementById('debtSnowballBtn').addEventListener('click', () => {
+            calculateDebtStrategy('snowball');
+        });
+
+        function calculateDebtStrategy(strategy) {
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+            if (activeLoans.length === 0) {
+                alert('No active loans to analyze');
+                return;
+            }
+
+            let sortedLoans;
+            if (strategy === 'avalanche') {
+                // Sort by highest interest rate first
+                sortedLoans = [...activeLoans].sort((a, b) => b.monthlyRate - a.monthlyRate);
+            } else {
+                // Sort by lowest balance first
+                sortedLoans = [...activeLoans].sort((a, b) => a.loanAmount - b.loanAmount);
+            }
+
+            const strategyResults = document.getElementById('strategyResults');
+            const strategyContent = document.getElementById('strategyContent');
+
+            let html = `
+                <p class="text-gray-600 mb-4">
+                    ${strategy === 'avalanche' 
+                        ? 'Pay minimum on all loans, then put extra money toward highest interest rate loan first.' 
+                        : 'Pay minimum on all loans, then put extra money toward smallest balance loan first.'}
+                </p>
+                <div class="space-y-3">
+                    <h4 class="font-semibold text-gray-900">Recommended Payoff Order:</h4>
+                    <ol class="list-decimal list-inside space-y-2">
+            `;
+
+            sortedLoans.forEach((loan, index) => {
+                html += `
+                    <li class="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                        <span class="font-medium">${loan.name}</span>
+                        <span class="text-sm text-gray-600">
+                            ₹${loan.loanAmount.toLocaleString()} @ ${loan.monthlyRate}% monthly
+                        </span>
+                    </li>
+                `;
+            });
+
+            html += `
+                    </ol>
+                </div>
+            `;
+
+            strategyContent.innerHTML = html;
+            strategyResults.classList.remove('hidden');
+        }
+
+        // Cash Flow Analysis
+        function analyzeCashFlow() {
+            const monthlyIncome = parseFloat(document.getElementById('monthlyIncome').value) || 0;
+            const otherExpenses = parseFloat(document.getElementById('otherExpenses').value) || 0;
+            const currentEMI = parseFloat(document.getElementById('monthlyEMI').value) || 0;
+            const extraPayment = parseFloat(document.getElementById('extraPayment').value) || 0;
+
+            const totalLoanPayment = currentEMI + extraPayment;
+            const availableForLoans = monthlyIncome - otherExpenses;
+            const debtToIncomeRatio = (totalLoanPayment / monthlyIncome) * 100;
+
+            let financialHealth = 'Poor';
+            let healthColor = 'text-red-600';
+
+            if (debtToIncomeRatio <= 20) {
+                financialHealth = 'Excellent';
+                healthColor = 'text-green-600';
+            } else if (debtToIncomeRatio <= 36) {
+                financialHealth = 'Good';
+                healthColor = 'text-blue-600';
+            } else if (debtToIncomeRatio <= 50) {
+                financialHealth = 'Fair';
+                healthColor = 'text-yellow-600';
+            }
+
+            document.getElementById('availableForLoans').textContent = `₹${availableForLoans.toLocaleString()}`;
+            document.getElementById('debtToIncomeRatio').textContent = `${debtToIncomeRatio.toFixed(1)}%`;
+            document.getElementById('financialHealth').textContent = financialHealth;
+            document.getElementById('financialHealth').className = `font-semibold ${healthColor}`;
+            
+            document.getElementById('cashFlowResults').classList.remove('hidden');
+        }
+
+        // Export Functions
+        function exportToPDF() {
+            if (currentSchedule.length === 0) {
+                alert('Please generate a schedule first.');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+
+            const loanName = document.getElementById('calculationName').value || 'Loan Schedule';
+            const loanAmount = document.getElementById('loanAmount').value;
+            const monthlyEMI = document.getElementById('monthlyEMI').value;
+            const monthlyRate = document.getElementById('monthlyRate').value;
+
+            // Add title
+            pdf.setFontSize(20);
+            pdf.text(loanName, 20, 20);
+
+            // Add loan details
+            pdf.setFontSize(12);
+            pdf.text(`Loan Amount: ₹${parseFloat(loanAmount).toLocaleString()}`, 20, 35);
+            pdf.text(`Monthly EMI: ₹${parseFloat(monthlyEMI).toLocaleString()}`, 20, 45);
+            pdf.text(`Interest Rate: ${monthlyRate}% monthly`, 20, 55);
+            pdf.text(`Total Interest: ₹${calculateTotalInterest().toFixed(2)}`, 20, 65);
+            pdf.text(`Duration: ${currentSchedule.length} months`, 20, 75);
+
+            // Add table headers
+            const headers = ['Month', 'EMI (₹)', 'Interest (₹)', 'Principal (₹)', 'Balance (₹)'];
+            let y = 90;
+
+            pdf.setFontSize(10);
+            headers.forEach((header, index) => {
+                pdf.text(header, 20 + (index * 35), y);
+            });
+
+            // Add table data (first 20 rows to fit on page)
+            y += 10;
+            currentSchedule.slice(0, 20).forEach((item) => {
+                pdf.text(item.month.toString(), 25, y);
+                pdf.text(item.emi.toFixed(2), 55, y);
+                pdf.text(item.interest.toFixed(2), 90, y);
+                pdf.text(item.principal.toFixed(2), 125, y);
+                pdf.text(item.balance.toFixed(2), 160, y);
+                y += 8;
+            });
+
+            if (currentSchedule.length > 20) {
+                pdf.text(`... and ${currentSchedule.length - 20} more payments`, 20, y + 10);
+            }
+
+            pdf.save(`${loanName}_Schedule.pdf`);
+        }
+
+        function exportToExcel() {
+            if (currentSchedule.length === 0) {
+                alert('Please generate a schedule first.');
+                return;
+            }
+
+            const loanName = document.getElementById('calculationName').value || 'Loan Schedule';
+            
+            // Prepare data for Excel
+            const excelData = [
+                ['Loan Schedule: ' + loanName],
+                [''],
+                ['Loan Amount:', `₹${document.getElementById('loanAmount').value}`],
+                ['Monthly EMI:', `₹${document.getElementById('monthlyEMI').value}`],
+                ['Interest Rate:', `${document.getElementById('monthlyRate').value}% monthly`],
+                ['Total Interest:', `₹${calculateTotalInterest().toFixed(2)}`],
+                ['Duration:', `${currentSchedule.length} months`],
+                [''],
+                ['Month', 'EMI (₹)', 'Interest (₹)', 'Principal (₹)', 'Balance (₹)']
+            ];
+
+            // Add schedule data
+            currentSchedule.forEach(item => {
+                excelData.push([
+                    item.month,
+                    item.emi.toFixed(2),
+                    item.interest.toFixed(2),
+                    item.principal.toFixed(2),
+                    item.balance.toFixed(2)
+                ]);
+            });
+
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Loan Schedule');
+
+            // Save file
+            XLSX.writeFile(wb, `${loanName}_Schedule.xlsx`);
+        }
+
+        // Calendar Functions
+        function initializeCalendar() {
+            updateCalendar();
+            updateUpcomingPayments();
+        }
+
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            updateCalendar();
+        });
+
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            updateCalendar();
+        });
+
+        function updateCalendar() {
+            const monthNames = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+
+            document.getElementById('currentMonth').textContent = 
+                `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+
+            const calendarGrid = document.getElementById('calendarGrid');
+            const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+            let html = '';
+            const today = new Date();
+            
+            for (let i = 0; i < 42; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                
+                const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+                const isToday = date.toDateString() === today.toDateString();
+                const hasPayment = checkPaymentOnDate(date);
+
+                html += `
+                    <div class="calendar-day border-b border-r border-gray-200 p-2 ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : ''} ${isToday ? 'bg-blue-50' : ''}">
+                        <div class="text-sm font-medium mb-1">${date.getDate()}</div>
+                        ${hasPayment ? '<div class="w-2 h-2 bg-red-500 rounded-full milestone-marker"></div>' : ''}
+                    </div>
+                `;
+            }
+
+            calendarGrid.innerHTML = html;
+        }
+
+        function checkPaymentOnDate(date) {
+            // Simple logic: assume payments are due on the same day each month
+            // In a real app, you'd store actual payment due dates
+            return allLoans.some(loan => loan.isActive !== false && date.getDate() === 1);
+        }
+
+        function updateUpcomingPayments() {
+            const upcomingPayments = document.getElementById('upcomingPayments');
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+
+            if (activeLoans.length === 0) {
+                upcomingPayments.innerHTML = '<p class="text-gray-500">No upcoming payments scheduled</p>';
+                return;
+            }
+
+            let html = '';
+            const today = new Date();
+            
+            activeLoans.forEach(loan => {
+                const nextPaymentDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                if (today.getDate() > 1) {
+                    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+                }
+
+                html += `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                        <div>
+                            <p class="font-medium text-gray-900">${loan.name}</p>
+                            <p class="text-sm text-gray-600">${nextPaymentDate.toLocaleDateString()}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-semibold text-gray-900">₹${(loan.monthlyEMI + (loan.extraPayment || 0)).toLocaleString()}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            upcomingPayments.innerHTML = html;
+        }
+
+        // Analytics Functions
+        function initializeAnalytics() {
+            updateInterestPrincipalChart();
+            updateLoanComparisonChart();
+            updateFinancialRatios();
+        }
+
+        function updateInterestPrincipalChart() {
+            const ctx = document.getElementById('interestPrincipalChart').getContext('2d');
+            
+            if (charts.interestPrincipal) {
+                charts.interestPrincipal.destroy();
+            }
+
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+            if (activeLoans.length === 0 || !activeLoans[0].schedule) {
+                return;
+            }
+
+            const schedule = activeLoans[0].schedule; // Use first loan as example
+            const sampleIndices = [];
+            for (let i = 0; i < schedule.length; i += Math.max(1, Math.floor(schedule.length / 12))) {
+                sampleIndices.push(i);
+            }
+
+            const labels = sampleIndices.map(i => `Month ${schedule[i].month}`);
+            const principalData = sampleIndices.map(i => schedule[i].principal);
+            const interestData = sampleIndices.map(i => schedule[i].interest);
+
+            charts.interestPrincipal = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Principal',
+                            data: principalData,
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true
+                        },
+                        {
+                            label: 'Interest',
+                            data: interestData,
+                            borderColor: '#EF4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateLoanComparisonChart() {
+            const ctx = document.getElementById('loanComparisonChart').getContext('2d');
+            
+            if (charts.loanComparison) {
+                charts.loanComparison.destroy();
+            }
+
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+            if (activeLoans.length === 0) {
+                return;
+            }
+
+            const labels = activeLoans.map(loan => loan.name);
+            const totalInterestData = activeLoans.map(loan => loan.totalInterest || 0);
+            const loanAmountData = activeLoans.map(loan => loan.loanAmount);
+
+            charts.loanComparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Loan Amount',
+                            data: loanAmountData,
+                            backgroundColor: '#0078D4',
+                            stack: 'loan'
+                        },
+                        {
+                            label: 'Total Interest',
+                            data: totalInterestData,
+                            backgroundColor: '#EF4444',
+                            stack: 'loan'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateFinancialRatios() {
+            const financialRatios = document.getElementById('financialRatios');
+            
+            // This would typically use stored user financial data
+            const monthlyIncome = parseFloat(document.getElementById('monthlyIncome').value) || 0;
+            
+            if (monthlyIncome === 0) {
+                financialRatios.innerHTML = `
+                    <div class="text-center py-8 text-gray-500 col-span-full">
+                        Add income information in Cash Flow Analysis to see financial ratios
+                    </div>
+                `;
+                return;
+            }
+
+            const activeLoans = allLoans.filter(loan => loan.isActive !== false);
+            const totalMonthlyPayment = activeLoans.reduce((sum, loan) => {
+                return sum + loan.monthlyEMI + (loan.extraPayment || 0);
+            }, 0);
+
+            const debtToIncomeRatio = (totalMonthlyPayment / monthlyIncome) * 100;
+            const totalDebt = activeLoans.reduce((sum, loan) => sum + loan.loanAmount, 0);
+            const debtToIncomeAmount = (totalDebt / (monthlyIncome * 12)) * 100;
+
+            let creditScore = 'Unknown';
+            let scoreColor = 'text-gray-600';
+            
+            if (debtToIncomeRatio <= 20) {
+                creditScore = 'Excellent (750+)';
+                scoreColor = 'text-green-600';
+            } else if (debtToIncomeRatio <= 36) {
+                creditScore = 'Good (700-749)';
+                scoreColor = 'text-blue-600';
+            } else if (debtToIncomeRatio <= 50) {
+                creditScore = 'Fair (650-699)';
+                scoreColor = 'text-yellow-600';
+            } else {
+                creditScore = 'Poor (< 650)';
+                scoreColor = 'text-red-600';
+            }
+
+            financialRatios.innerHTML = `
+                <div class="text-center">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Debt-to-Income Ratio</h4>
+                    <p class="text-3xl font-bold text-primary">${debtToIncomeRatio.toFixed(1)}%</p>
+                    <p class="text-sm text-gray-600">Monthly payments vs income</p>
+                </div>
+                <div class="text-center">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Total Debt Ratio</h4>
+                    <p class="text-3xl font-bold text-warning">${debtToIncomeAmount.toFixed(1)}%</p>
+                    <p class="text-sm text-gray-600">Total debt vs annual income</p>
+                </div>
+                <div class="text-center">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Credit Health</h4>
+                    <p class="text-lg font-bold ${scoreColor}">${creditScore}</p>
+                    <p class="text-sm text-gray-600">Estimated credit score range</p>
+                </div>
+            `;
+        }
+
+        // Goal Management
+        document.getElementById('addGoalBtn').addEventListener('click', () => {
+            showGoalModal();
+        });
+
+        document.getElementById('cancelGoalBtn').addEventListener('click', () => {
+            hideGoalModal();
+        });
+
+        document.getElementById('saveGoalBtn').addEventListener('click', () => {
+            saveGoal();
+        });
+
+        function showGoalModal() {
+            const modal = document.getElementById('goalModal');
+            const loanSelect = document.getElementById('goalLoanSelect');
+            
+            // Populate loan dropdown
+            loanSelect.innerHTML = '<option value="">Select a loan...</option>';
+            allLoans.filter(loan => loan.isActive !== false).forEach(loan => {
+                loanSelect.innerHTML += `<option value="${loan.id}">${loan.name}</option>`;
+            });
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function hideGoalModal() {
+            const modal = document.getElementById('goalModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveGoal() {
+            const loanId = document.getElementById('goalLoanSelect').value;
+            const goalDate = document.getElementById('goalDate').value;
+            
+            if (!loanId || !goalDate) {
+                alert('Please select a loan and target date.');
+                return;
+            }
+
+            // In a real app, you'd save this goal to Firestore
+            alert('Goal saved! (This would be implemented with Firestore in production)');
+            hideGoalModal();
+        }
+
+        // Delete Loan Function (Global)
+        window.deleteLoan = async function(loanId) {
+            if (!confirm('Are you sure you want to delete this loan?')) {
+                return;
+            }
+
+            try {
+                await deleteDoc(doc(db, 'users', currentUser.uid, 'loans', loanId));
+                await loadAllData();
+            } catch (error) {
+                console.error('Delete loan error:', error);
+                alert('Failed to delete loan.');
             }
         };
+
+        // Initialize app
+        switchTab('dashboard');
     </script>
 </body>
 </html>
