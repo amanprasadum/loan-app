@@ -514,6 +514,9 @@
         const provider = new GoogleAuthProvider();
 
         // Global variables
+        let
+
+        // Global variables
         let currentUser = null;
         let currentSchedule = [];
         let allLoans = [];
@@ -774,7 +777,7 @@
             }
 
             try {
-                const docRef = await addDoc(collection(db, 'users', currentUser.uid, 'loans'), {
+                const docRef = await addDoc(collection(db, 'users', currentUser.uid, 'loanCalculations'), {
                     name: calculationName,
                     loanAmount,
                     monthlyEMI,
@@ -800,7 +803,7 @@
         async function loadAllLoans() {
             try {
                 const q = query(
-                    collection(db, 'users', currentUser.uid, 'loans'),
+                    collection(db, 'users', currentUser.uid, 'loanCalculations'),
                     orderBy('createdAt', 'desc')
                 );
                 const querySnapshot = await getDocs(q);
@@ -1625,7 +1628,7 @@
             }
 
             try {
-                await deleteDoc(doc(db, 'users', currentUser.uid, 'loans', loanId));
+                await deleteDoc(doc(db, 'users', currentUser.uid, 'loanCalculations', loanId));
                 await loadAllData();
             } catch (error) {
                 console.error('Delete loan error:', error);
