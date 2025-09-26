@@ -546,4 +546,611 @@
                     html = `
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Principal Amount (₹)</label>
-                            <input type="number" id="principal" class="w-
+                            <input type="number" id="principal" class="w-// Continuing from where your code was cut off...
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Principal Amount (₹)</label>
+                            <input type="number" id="principal" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="500000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Interest Rate (%)</label>
+                            <input type="number" id="interestRate" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="8.5">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Loan Tenure (Years)</label>
+                            <input type="number" id="tenure" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="20">
+                        </div>
+                    `;
+                    break;
+                case 'fixed':
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Total Amount to Pay (₹)</label>
+                            <input type="number" id="totalAmount" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="100000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Monthly Payment (₹)</label>
+                            <input type="number" id="monthlyPayment" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="5000">
+                        </div>
+                    `;
+                    break;
+                case 'interest_only':
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Principal Amount (₹)</label>
+                            <input type="number" id="principal" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="500000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Interest Rate (% per month)</label>
+                            <input type="number" id="interestRate" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="1.5">
+                        </div>
+                    `;
+                    break;
+                case 'personal':
+                    html = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Current Outstanding (₹)</label>
+                            <input type="number" id="outstanding" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="50000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Target Monthly Payment (₹)</label>
+                            <input type="number" id="monthlyPayment" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="5000">
+                        </div>
+                    `;
+                    break;
+            }
+            
+            fieldsDiv.innerHTML = html;
+        }
+
+        function clearLoanForm() {
+            document.getElementById('loanName').value = '';
+            document.getElementById('loanType').value = 'emi';
+            document.getElementById('paymentDate').value = '1';
+            document.getElementById('autoPayment').checked = false;
+            document.getElementById('loanFields').innerHTML = '';
+        }
+
+        function saveLoan() {
+            const name = document.getElementById('loanName').value.trim();
+            const type = document.getElementById('loanType').value;
+            const paymentDate = parseInt(document.getElementById('paymentDate').value);
+            const autoPayment = document.getElementById('autoPayment').checked;
+            
+            if (!name) {
+                alert('Please enter a loan name');
+                return;
+            }
+            
+            const loan = {
+                id: Date.now(),
+                name,
+                type,
+                paymentDate,
+                autoPayment,
+                createdAt: new Date().toISOString(),
+                totalPaid: 0
+            };
+            
+            // Add type-specific fields
+            switch(type) {
+                case 'emi':
+                    const principal = parseFloat(document.getElementById('principal').value);
+                    const interestRate = parseFloat(document.getElementById('interestRate').value);
+                    const tenure = parseFloat(document.getElementById('tenure').value);
+                    
+                    if (!principal || !interestRate || !tenure) {
+                        alert('Please fill all EMI loan fields');
+                        return;
+                    }
+                    
+                    const monthlyRate = interestRate / 100 / 12;
+                    const totalMonths = tenure * 12;
+                    const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+                    
+                    loan.principal = principal;
+                    loan.interestRate = interestRate;
+                    loan.tenure = tenure;
+                    loan.monthlyPayment = Math.round(emi);
+                    loan.totalAmount = Math.round(emi * totalMonths);
+                    loan.remainingAmount = loan.totalAmount;
+                    break;
+                    
+                case 'fixed':
+                    const totalAmount = parseFloat(document.getElementById('totalAmount').value);
+                    const monthlyPayment = parseFloat(document.getElementById('monthlyPayment').value);
+                    
+                    if (!totalAmount || !monthlyPayment) {
+                        alert('Please fill all fixed loan fields');
+                        return;
+                    }
+                    
+                    loan.totalAmount = totalAmount;
+                    loan.monthlyPayment = monthlyPayment;
+                    loan.remainingAmount = totalAmount;
+                    break;
+                    
+                case 'interest_only':
+                    const principalIO = parseFloat(document.getElementById('principal').value);
+                    const interestRateIO = parseFloat(document.getElementById('interestRate').value);
+                    
+                    if (!principalIO || !interestRateIO) {
+                        alert('Please fill all interest-only loan fields');
+                        return;
+                    }
+                    
+                    loan.principal = principalIO;
+                    loan.interestRate = interestRateIO;
+                    loan.monthlyPayment = Math.round(principalIO * interestRateIO / 100);
+                    loan.remainingAmount = principalIO;
+                    break;
+                    
+                case 'personal':
+                    const outstanding = parseFloat(document.getElementById('outstanding').value);
+                    const monthlyPaymentPersonal = parseFloat(document.getElementById('monthlyPayment').value);
+                    
+                    if (!outstanding || !monthlyPaymentPersonal) {
+                        alert('Please fill all personal loan fields');
+                        return;
+                    }
+                    
+                    loan.totalAmount = outstanding;
+                    loan.monthlyPayment = monthlyPaymentPersonal;
+                    loan.remainingAmount = outstanding;
+                    break;
+            }
+            
+            loans.push(loan);
+            saveData();
+            updateDashboard();
+            updateLoanCards();
+            updatePaymentOptions();
+            hideLoanModal();
+        }
+
+        // Wishlist Management
+        function showWishlistModal() {
+            document.getElementById('wishlistModal').classList.remove('hidden');
+            document.getElementById('wishlistModal').classList.add('flex');
+        }
+
+        function hideWishlistModal() {
+            document.getElementById('wishlistModal').classList.add('hidden');
+            clearWishlistForm();
+        }
+
+        function clearWishlistForm() {
+            document.getElementById('goalName').value = '';
+            document.getElementById('goalImage').value = '';
+            document.getElementById('goalPrice').value = '';
+            document.getElementById('savingFreq').value = 'monthly';
+            document.getElementById('savingAmount').value = '';
+        }
+
+        function saveWishlist() {
+            const name = document.getElementById('goalName').value.trim();
+            const image = document.getElementById('goalImage').value.trim();
+            const price = parseFloat(document.getElementById('goalPrice').value);
+            const frequency = document.getElementById('savingFreq').value;
+            const amount = parseFloat(document.getElementById('savingAmount').value);
+            
+            if (!name || !price || !amount) {
+                alert('Please fill all required fields');
+                return;
+            }
+            
+            const item = {
+                id: Date.now(),
+                name,
+                image: image || 'https://via.placeholder.com/300x200?text=Goal',
+                price,
+                frequency,
+                amount,
+                saved: 0,
+                createdAt: new Date().toISOString()
+            };
+            
+            wishlistItems.push(item);
+            saveData();
+            updateDashboard();
+            updateWishlistCards();
+            updatePaymentOptions();
+            hideWishlistModal();
+        }
+
+        // Payment Management
+        function showPaymentModal() {
+            updatePaymentOptions();
+            document.getElementById('paymentModal').classList.remove('hidden');
+            document.getElementById('paymentModal').classList.add('flex');
+        }
+
+        function hidePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+            clearPaymentForm();
+        }
+
+        function clearPaymentForm() {
+            document.getElementById('paymentLoan').value = '';
+            document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentNote').value = '';
+        }
+
+        function updatePaymentOptions() {
+            const select = document.getElementById('paymentLoan');
+            let html = '<option value="">Select...</option>';
+            
+            loans.forEach(loan => {
+                html += `<option value="loan_${loan.id}">${loan.name} (Loan)</option>`;
+            });
+            
+            wishlistItems.forEach(item => {
+                html += `<option value="wishlist_${item.id}">${item.name} (Goal)</option>`;
+            });
+            
+            select.innerHTML = html;
+        }
+
+        function savePayment() {
+            const loanId = document.getElementById('paymentLoan').value;
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const date = document.getElementById('paymentDate2').value;
+            const note = document.getElementById('paymentNote').value.trim();
+            
+            if (!loanId || !amount || !date) {
+                alert('Please fill all required fields');
+                return;
+            }
+            
+            const payment = {
+                id: Date.now(),
+                targetId: loanId,
+                amount,
+                date,
+                note,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Update loan or wishlist item
+            if (loanId.startsWith('loan_')) {
+                const id = parseInt(loanId.replace('loan_', ''));
+                const loan = loans.find(l => l.id === id);
+                if (loan) {
+                    loan.totalPaid = (loan.totalPaid || 0) + amount;
+                    if (loan.type !== 'interest_only') {
+                        loan.remainingAmount = Math.max(0, loan.remainingAmount - amount);
+                    }
+                }
+            } else if (loanId.startsWith('wishlist_')) {
+                const id = parseInt(loanId.replace('wishlist_', ''));
+                const item = wishlistItems.find(i => i.id === id);
+                if (item) {
+                    item.saved = (item.saved || 0) + amount;
+                }
+            }
+            
+            payments.push(payment);
+            saveData();
+            updateDashboard();
+            updateLoanCards();
+            updateWishlistCards();
+            hidePaymentModal();
+        }
+
+        // Dashboard Updates
+        function updateDashboard() {
+            // Calculate totals
+            const totalDebt = loans.reduce((sum, loan) => sum + (loan.remainingAmount || 0), 0);
+            const totalMonthlyPayment = loans.reduce((sum, loan) => sum + (loan.monthlyPayment || 0), 0);
+            const totalSavings = wishlistItems.reduce((sum, item) => sum + (item.saved || 0), 0);
+            
+            // Update summary cards
+            document.getElementById('totalDebt').textContent = `₹${totalDebt.toLocaleString('en-IN')}`;
+            document.getElementById('totalMonthlyPayment').textContent = `₹${totalMonthlyPayment.toLocaleString('en-IN')}`;
+            document.getElementById('totalSavings').textContent = `₹${totalSavings.toLocaleString('en-IN')}`;
+            
+            // Calculate next payment
+            const today = new Date();
+            const currentDate = today.getDate();
+            let nextPaymentDate = '';
+            
+            loans.forEach(loan => {
+                if (loan.paymentDate >= currentDate) {
+                    const nextDate = new Date(today.getFullYear(), today.getMonth(), loan.paymentDate);
+                    if (!nextPaymentDate || nextDate < new Date(nextPaymentDate)) {
+                        nextPaymentDate = nextDate.toLocaleDateString('en-IN');
+                    }
+                } else {
+                    const nextDate = new Date(today.getFullYear(), today.getMonth() + 1, loan.paymentDate);
+                    if (!nextPaymentDate || nextDate < new Date(nextPaymentDate)) {
+                        nextPaymentDate = nextDate.toLocaleDateString('en-IN');
+                    }
+                }
+            });
+            
+            document.getElementById('nextPayment').textContent = nextPaymentDate || '-';
+            
+            // Update recent payments
+            updateRecentPayments();
+            updateUpcomingPayments();
+            updateProgressOverview();
+        }
+
+        function updateRecentPayments() {
+            const container = document.getElementById('recentPayments');
+            const recentPayments = payments.slice(-5).reverse();
+            
+            if (recentPayments.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">No payments recorded yet</p>';
+                return;
+            }
+            
+            let html = '';
+            recentPayments.forEach(payment => {
+                const targetName = getTargetName(payment.targetId);
+                html += `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                        <div>
+                            <p class="font-medium text-gray-900">${targetName}</p>
+                            <p class="text-sm text-gray-500">${new Date(payment.date).toLocaleDateString('en-IN')}</p>
+                        </div>
+                        <p class="font-semibold text-green-600">₹${payment.amount.toLocaleString('en-IN')}</p>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateUpcomingPayments() {
+            const container = document.getElementById('upcomingPayments');
+            const today = new Date();
+            const currentDate = today.getDate();
+            
+            let upcomingPayments = [];
+            
+            loans.forEach(loan => {
+                if (loan.remainingAmount > 0) {
+                    let nextDate;
+                    if (loan.paymentDate >= currentDate) {
+                        nextDate = new Date(today.getFullYear(), today.getMonth(), loan.paymentDate);
+                    } else {
+                        nextDate = new Date(today.getFullYear(), today.getMonth() + 1, loan.paymentDate);
+                    }
+                    
+                    upcomingPayments.push({
+                        name: loan.name,
+                        amount: loan.monthlyPayment,
+                        date: nextDate
+                    });
+                }
+            });
+            
+            upcomingPayments.sort((a, b) => a.date - b.date);
+            
+            if (upcomingPayments.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">No upcoming payments</p>';
+                return;
+            }
+            
+            let html = '';
+            upcomingPayments.slice(0, 5).forEach(payment => {
+                html += `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                        <div>
+                            <p class="font-medium text-gray-900">${payment.name}</p>
+                            <p class="text-sm text-gray-500">${payment.date.toLocaleDateString('en-IN')}</p>
+                        </div>
+                        <p class="font-semibold text-orange-600">₹${payment.amount.toLocaleString('en-IN')}</p>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateProgressOverview() {
+            const container = document.getElementById('progressOverview');
+            
+            if (loans.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8">Add loans to see progress tracking</p>';
+                return;
+            }
+            
+            let html = '';
+            loans.forEach(loan => {
+                const totalAmount = loan.totalAmount || loan.remainingAmount;
+                const paidAmount = loan.totalPaid || 0;
+                const progressPercent = totalAmount > 0 ? Math.min(100, (paidAmount / totalAmount) * 100) : 0;
+                
+                html += `
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-medium text-gray-900">${loan.name}</h4>
+                            <span class="text-sm text-gray-500">${progressPercent.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="progress-bar bg-blue-600 h-3 rounded-full" style="width: ${progressPercent}%"></div>
+                        </div>
+                        <div class="flex justify-between mt-1 text-sm text-gray-600">
+                            <span>Paid: ₹${paidAmount.toLocaleString('en-IN')}</span>
+                            <span>Remaining: ₹${(loan.remainingAmount || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateLoanCards() {
+            const container = document.getElementById('loanCards');
+            
+            if (loans.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No loans added yet. Click "Add New Loan" to get started.</div>';
+                return;
+            }
+            
+            let html = '';
+            loans.forEach(loan => {
+                const progressPercent = loan.totalAmount > 0 ? Math.min(100, ((loan.totalPaid || 0) / loan.totalAmount) * 100) : 0;
+                
+                html += `
+                    <div class="loan-card bg-white rounded-lg shadow-lg p-6 fade-in">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">${loan.name}</h3>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">${loan.type.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                        
+                        <div class="space-y-3 mb-4">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Monthly Payment:</span>
+                                <span class="font-semibold">₹${(loan.monthlyPayment || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Remaining:</span>
+                                <span class="font-semibold text-red-600">₹${(loan.remainingAmount || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Total Paid:</span>
+                                <span class="font-semibold text-green-600">₹${(loan.totalPaid || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                                <span>Progress</span>
+                                <span>${progressPercent.toFixed(1)}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="progress-bar bg-green-500 h-2 rounded-full" style="width: ${progressPercent}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button onclick="makePayment(${loan.id})" class="flex-1 bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark">Make Payment</button>
+                            <button onclick="deleteLoan(${loan.id})" class="px-4 py-2 text-red-600 border border-red-600 rounded-md text-sm hover:bg-red-50">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateWishlistCards() {
+            const container = document.getElementById('wishlistCards');
+            
+            if (wishlistItems.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No goals added yet. Click "Add New Goal" to get started.</div>';
+                return;
+            }
+            
+            let html = '';
+            wishlistItems.forEach(item => {
+                const progressPercent = item.price > 0 ? Math.min(100, ((item.saved || 0) / item.price) * 100) : 0;
+                const remaining = item.price - (item.saved || 0);
+                const isCompleted = progressPercent >= 100;
+                
+                html += `
+                    <div class="bg-white rounded-lg shadow-lg overflow-hidden fade-in">
+                        <img src="${item.image}" alt="${item.name}" class="w-full h-48 object-cover">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">${item.name}</h3>
+                            
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Target Price:</span>
+                                    <span class="font-semibold">₹${item.price.toLocaleString('en-IN')}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Saved:</span>
+                                    <span class="font-semibold text-green-600">₹${(item.saved || 0).toLocaleString('en-IN')}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Remaining:</span>
+                                    <span class="font-semibold text-orange-600">₹${remaining.toLocaleString('en-IN')}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <div class="flex justify-between text-sm text-gray-600 mb-1">
+                                    <span>Progress</span>
+                                    <span>${progressPercent.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="progress-bar ${isCompleted ? 'bg-green-500' : 'bg-blue-500'} h-2 rounded-full" style="width: ${progressPercent}%"></div>
+                                </div>
+                            </div>
+                            
+                            ${isCompleted ? 
+                                '<div class="text-center py-2 bg-green-100 text-green-800 rounded-md font-semibold">🎉 Goal Achieved!</div>' :
+                                `<div class="flex space-x-2">
+                                    <button onclick="addSaving(${item.id})" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700">Add Saving</button>
+                                    <button onclick="deleteWishlist(${item.id})" class="px-4 py-2 text-red-600 border border-red-600 rounded-md text-sm hover:bg-red-50">Delete</button>
+                                </div>`
+                            }
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Helper functions
+        function getTargetName(targetId) {
+            if (targetId.startsWith('loan_')) {
+                const id = parseInt(targetId.replace('loan_', ''));
+                const loan = loans.find(l => l.id === id);
+                return loan ? loan.name : 'Unknown Loan';
+            } else if (targetId.startsWith('wishlist_')) {
+                const id = parseInt(targetId.replace('wishlist_', ''));
+                const item = wishlistItems.find(i => i.id === id);
+                return item ? item.name : 'Unknown Goal';
+            }
+            return 'Unknown';
+        }
+
+        function makePayment(loanId) {
+            const loan = loans.find(l => l.id === loanId);
+            if (loan) {
+                document.getElementById('paymentLoan').value = `loan_${loanId}`;
+                document.getElementById('paymentAmount').value = loan.monthlyPayment;
+                showPaymentModal();
+            }
+        }
+
+        function addSaving(itemId) {
+            const item = wishlistItems.find(i => i.id === itemId);
+            if (item) {
+                document.getElementById('paymentLoan').value = `wishlist_${itemId}`;
+                document.getElementById('paymentAmount').value = item.amount;
+                showPaymentModal();
+            }
+        }
+
+        function deleteLoan(loanId) {
+            if (confirm('Are you sure you want to delete this loan?')) {
+                loans = loans.filter(l => l.id !== loanId);
+                payments = payments.filter(p => p.targetId !== `loan_${loanId}`);
+                saveData();
+                updateDashboard();
+                updateLoanCards();
+                updatePaymentOptions();
+            }
+        }
+
+        function deleteWishlist(itemId) {
+            if (confirm('Are you sure you want to delete this goal?')) {
+                wishlistItems = wishlistItems.filter(i => i.id !== itemId);
+                payments = payments.filter(p => p.targetId !== `wishlist_${itemId}`);
+                saveData();
+                updateDashboard();
+                updateWishlistCards();
+                updatePaymentOptions();
+            }
+        }
+    </script>
+</body>
+</html>
