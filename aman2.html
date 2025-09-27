@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Loan Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0078D4',
+                        'primary-dark': '#005ea2',
+                        success: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .chart-container { position: relative; height: 300px; }
+        .progress-bar { transition: width 0.5s ease-in-out; }
+        .motivational-quote { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            animation: gradientShift 10s ease-in-out infinite alternate;
+        }
+        @keyframes gradientShift {
+            0% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+            100% { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        }
+        .nav-tab {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #6B7280;
+        }
+        .nav-tab:hover {
+            background-color: #F3F4F6;
+            color: #374151;
+        }
+        .nav-tab.active {
+            background-color: #0078D4;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Loading Spinner -->
+    <div id="loading" class="fixed inset-0 bg-gray-50 flex items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="hidden min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full space-y-8">
+            <div>
+                <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                    Personal Loan Manager
+                </h2>
+                <p class="mt-2 text-center text-sm text-gray-600">
+                    Track your loans and achieve financial freedom
+                </p>
+            </div>
+            <div class="mt-8 space-y-6">
+                <button id="googleSignIn" 
+                        class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out">
+                    <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="appScreen" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <h1 class="text-2xl font-bold text-gray-900">Personal Loan Manager</h1>
+                    <div class="flex items-center space-x-4">
+                        <!-- Navigation Tabs -->
+                        <div class="flex space-x-1">
+                            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+                            <button class="nav-tab" data-tab="loans">My Loans</button>
+                            <button class="nav-tab" data-tab="wishlist">Wishlist</button>
+                            <button class="nav-tab" data-tab="wellness">Wellness</button>
+                        </div>
+                        <span id="userEmail" class="text-sm text-gray-600"></span>
+                        <button id="signOutBtn" class="text-sm text-primary hover:text-primary-dark">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Motivational Quote Bar -->
+        <div class="motivational-quote text-white text-center py-3">
+            <p id="motivationalQuote" class="text-lg font-medium">Every payment brings you closer to financial freedom!</p>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboardTab" class="tab-content">
+            <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-500">Total Outstanding</p>
+                                <p id="totalDebt" class="text-2xl font-bold text-red-600">₹0</p>
+                            </div>
+                            <div class="ml-4 flex-shrink-0">
+                                <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                                    <span class="text-red-600 font-bold">₹</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-500">Monthly Payment</p>
+                                <p id="totalMonthlyPayment" class="text-2xl font-bold text-blue-600">₹0</p>
+                            </div>
+                            <div class="ml-4 flex-shrink-0">
+                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span class="text-blue-600 font-bold">📅</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-500">This Month Paid</p>
+                                <p id="thisMonthPaid" class="text-2xl font-bold text-green-600">₹0</p>
+                            </div>
+                            <div class="ml-4 flex-shrink-0">
+                                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                    <span class="text-green-600 font-bold">✓</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-500">Active Loans</p>
+                                <p id="activeLoansCount" class="text-2xl font-bold text-orange-600">0</p>
+                            </div>
+                            <div class="ml-4 flex-shrink-0">
+                                <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                                    <span class="text-orange-600 font-bold">#</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Loan Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="loanDistributionChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Payment Timeline</h3>
+                        <div class="chart-container">
+                            <canvas id="paymentTimelineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loan Progress -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Loan Progress</h3>
+                    <div id="loanProgressSection">
+                        <p class="text-gray-500">Add loans to see progress tracking</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+                        <!-- My Loans Tab -->
+        <div id="loansTab" class="tab-content hidden">
+            <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">My Loans</h2>
+                    <button onclick="clearAllLoans()" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm">
+                        Clear All Loans
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Add Loan Form -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-lg shadow p-6 sticky top-24">
+                            <h2 class="text-lg font-semibold text-gray-900 mb-4">Add New Loan</h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Loan Type</label>
+                                    <select id="loanType" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="emi">EMI Loan (Home/Car/Personal)</option>
+                                        <option value="fixed_total">Fixed Total Amount</option>
+                                        <option value="interest_only">Interest Only (Gold Loan)</option>
+                                        <option value="informal">Informal Loan</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Loan Name</label>
+                                    <input type="text" id="loanName" placeholder="e.g., Home Loan, Car Loan" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Principal Amount (₹)</label>
+                                    <input type="number" id="principalAmount" placeholder="e.g., 250000" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+
+                                <!-- EMI Loan Fields -->
+                                <div id="emiFields" class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Monthly EMI (₹)</label>
+                                        <input type="number" id="monthlyEMI" placeholder="e.g., 6000" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Monthly Interest Rate (%)</label>
+                                        <input type="number" id="interestRate" placeholder="e.g., 1" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    </div>
+                                </div>
+
+                                <!-- Fixed Total Fields -->
+                                <div id="fixedTotalFields" class="space-y-4 hidden">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Total Amount to Pay (₹)</label>
+                                        <input type="number" id="totalToPay" placeholder="e.g., 110000" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    </div>
+                                </div>
+
+                                <!-- Interest Only Fields -->
+                                <div id="interestOnlyFields" class="space-y-4 hidden">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Monthly Interest Payment (₹)</label>
+                                        <input type="number" id="monthlyInterest" placeholder="e.g., 1000" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    </div>
+                                </div>
+
+                                <!-- Informal Loan Fields -->
+                                <div id="informalFields" class="space-y-4 hidden">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Monthly Payment (₹)</label>
+                                        <input type="number" id="informalPayment" placeholder="e.g., 2900" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Payment Due Date</label>
+                                    <select id="dueDate" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="1">1st of every month</option>
+                                        <option value="5">5th of every month</option>
+                                        <option value="10">10th of every month</option>
+                                        <option value="15">15th of every month</option>
+                                        <option value="20">20th of every month</option>
+                                        <option value="25">25th of every month</option>
+                                    </select>
+                                </div>
+
+                                <button onclick="saveLoan()" class="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary-dark">
+                                    Add Loan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loans Display -->
+                    <div class="lg:col-span-2">
+                        <!-- Payment Form -->
+                        <div id="paymentSection" class="bg-white rounded-lg shadow p-6 mb-6 hidden">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Record Payment</h3>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Amount (₹)</label>
+                                    <input type="number" id="paymentAmount" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                                    <input type="date" id="paymentDate" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+                                <div class="flex items-end">
+                                    <button onclick="recordPayment()" class="w-full bg-success text-white py-2 px-4 rounded-md hover:bg-green-700 mr-2">Record</button>
+                                    <button onclick="cancelPayment()" class="bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="loansGrid" class="space-y-6">
+                            <div class="text-center py-12 text-gray-500">
+                                No loans added yet. Use the form on the left to add your first loan.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Wishlist Tab -->
+        <div id="wishlistTab" class="tab-content hidden">
+            <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">My Wishlist</h2>
+                    <button onclick="clearAllWishes()" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm">
+                        Clear All Wishes
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Add Wishlist Form -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-lg shadow p-6 sticky top-24">
+                            <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                ❤️ Add Wishlist Goal
+                            </h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Goal Name</label>
+                                    <input type="text" id="wishName" placeholder="e.g., New Bike, Vacation" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Target Price (₹)</label>
+                                    <input type="number" id="wishPrice" placeholder="e.g., 80000" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+
+                                <button onclick="saveWish()" class="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary-dark">
+                                    Add Goal
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Add Saving Form -->
+                        <div id="savingSection" class="bg-white rounded-lg shadow p-6 mt-6 hidden">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Saving</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Amount (₹)</label>
+                                    <input type="number" id="savingAmount" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                                    <input type="date" id="savingDate" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button onclick="recordSaving()" class="flex-1 bg-success text-white py-2 px-4 rounded-md hover:bg-green-700">Save</button>
+                                    <button onclick="cancelSaving()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Wishlist Display -->
+                    <div class="lg:col-span-2">
+                        <div id="wishlistGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="text-center py-12 text-gray-500 col-span-full">
+                                No goals set yet. Start saving for something special!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Wellness Tab -->
+        <div id="wellnessTab" class="tab-content hidden">
+            <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Wellness & Health Tips</h2>
+                
+                <!-- Daily Wellness Tips -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-green-600 rounded-lg shadow p-6 text-white">
+                        <h3 class="text-lg font-semibold mb-2">🥗 Healthy Eating</h3>
+                        <p id="fruitTip" class="text-sm">Eat seasonal fruits daily for better health and energy!</p>
+                    </div>
+
+                    <div class="bg-blue-600 rounded-lg shadow p-6 text-white">
+                        <h3 class="text-lg font-semibold mb-2">💧 Stay Hydrated</h3>
+                        <p id="hydrationTip" class="text-sm">Drink 8-10 glasses of water daily for optimal health!</p>
+                    </div>
+
+                    <div class="bg-purple-600 rounded-lg shadow p-6 text-white">
+                        <h3 class="text-lg font-semibold mb-2">🧘‍♂️ Mental Wellness</h3>
+                        <p id="meditationTip" class="text-sm">Take 5 minutes daily for mindfulness and mental peace!</p>
+                    </div>
+                </div>
+
+                <!-- Physical Health Section -->
+                <div class="bg-white rounded-lg shadow p-6 mb-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">💪 Physical Health</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">🏃‍♂️ Daily Exercise</h4>
+                                <p class="text-sm text-gray-700">Walk for at least 30 minutes daily. It's free and improves cardiovascular health, strengthens bones, and boosts mood.</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">🏋️‍♀️ Strength Training</h4>
+                                <p class="text-sm text-gray-700">Include bodyweight exercises like push-ups, squats, and planks 3 times a week to maintain muscle mass and bone density.</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">🤸‍♂️ Flexibility</h4>
+                                <p class="text-sm text-gray-700">Stretch for 10 minutes daily or try yoga to improve flexibility, reduce stiffness, and prevent injuries.</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">😴 Quality Sleep</h4>
+                                <p class="text-sm text-gray-700">Aim for 7-8 hours of sleep. Create a bedtime routine, avoid screens before bed, and keep your room cool and dark.</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">🌞 Sunlight Exposure</h4>
+                                <p class="text-sm text-gray-700">Get 15-20 minutes of morning sunlight daily for vitamin D synthesis and better sleep-wake cycle regulation.</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">🚭 Avoid Harmful Habits</h4>
+                                <p class="text-sm text-gray-700">Quit smoking, limit alcohol consumption, and avoid excessive sugar and processed foods for better long-term health.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nutrition Section -->
+                <div class="bg-white rounded-lg shadow p-6 mb-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">🍎 Nutrition Guidelines</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-3">
+                            <h4 class="font-medium text-gray-900">🥬 Vegetables & Fruits</h4>
+                            <ul class="text-sm text-gray-700 space-y-1">
+                                <li>• 5-7 servings of fruits and vegetables daily</li>
+                                <li>• Choose colorful varieties for diverse nutrients</li>
+                                <li>• Include leafy greens like spinach and kale</li>
+                                <li>• Seasonal fruits are more nutritious and affordable</li>
+                            </ul>
+                        </div>
+                        <div class="space-y-3">
+                            <h4 class="font-medium text-gray-900">🌾 Whole Grains & Proteins</h4>
+                            <ul class="text-sm text-gray-700 space-y-1">
+                                <li>• Choose brown rice, oats, and whole wheat</li>
+                                <li>• Include lean proteins: fish, chicken, legumes</li>
+                                <li>• Plant proteins: dal, beans, quinoa, nuts</li>
+                                <li>• Limit processed and refined foods</li>
+                            </ul>
+                        </div>
+                        <div class="space-y-3">
+                            <h4 class="font-medium text-gray-900">💧 Hydration & Timing</h4>
+                            <ul class="text-sm text-gray-700 space-y-1">
+                                <li>• 2-3 liters of water daily</li>
+                                <li>• Start day with warm water and lemon</li>
+                                <li>• Eat smaller, frequent meals</li>
+                                <li>• Avoid late night heavy meals</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mental Health Section -->
+                <div class="bg-white rounded-lg shadow p-6 mb-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">🧠 Mental Health & Stress Management</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div class="bg-blue-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">🧘‍♀️ Mindfulness Practices</h4>
+                                <p class="text-sm text-gray-700">Practice deep breathing exercises for 5-10 minutes daily. Try meditation apps or simple breathing techniques to reduce stress and anxiety.</p>
+                            </div>
+                            <div class="bg-green-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">📝 Journaling</h4>
+                                <p class="text-sm text-gray-700">Write down your thoughts, gratitudes, and goals. This helps process emotions and maintain mental clarity.</p>
+                            </div>
+                            <div class="bg-yellow-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">🤝 Social Connections</h4>
+                                <p class="text-sm text-gray-700">Maintain healthy relationships. Regular social interaction is crucial for mental well-being and emotional support.</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="bg-purple-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">⏰ Time Management</h4>
+                                <p class="text-sm text-gray-700">Create daily routines and set realistic goals. Good time management reduces stress and increases productivity.</p>
+                            </div>
+                            <div class="bg-pink-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">🎨 Creative Activities</h4>
+                                <p class="text-sm text-gray-700">Engage in hobbies you enjoy - reading, music, art, gardening. Creative activities boost mood and reduce stress.</p>
+                            </div>
+                            <div class="bg-orange-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">🔄 Work-Life Balance</h4>
+                                <p class="text-sm text-gray-700">Set boundaries between work and personal time. Take regular breaks and vacation days to prevent burnout.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Wellness Section -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">💰 Financial Wellness Tips</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">Budget-Friendly Health</h4>
+                                <p class="text-sm text-gray-700">Cook at home to save money and eat healthier. Plan meals in advance and buy seasonal produce for better nutrition at lower costs.</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">Preventive Healthcare</h4>
+                                <p class="text-sm text-gray-700">Regular health check-ups prevent costly medical bills later. Maintain good health through diet and exercise to avoid expensive treatments.</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">Financial Stress Management</h4>
+                                <p class="text-sm text-gray-700">Create emergency funds and debt repayment plans. Financial planning reduces anxiety and improves overall well-being.</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-4">
+                                <h4 class="font-medium text-gray-900 mb-2">Free Health Activities</h4>
+                                <p class="text-sm text-gray-700">Walking, yoga at home, meditation, and bodyweight exercises cost nothing but provide significant health benefits.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAk9S7FKg8_fJ7ubU2CRousfQmEozgxTQo",
+            authDomain: "study-firebase-8689a.firebaseapp.com",
+            projectId: "study-firebase-8689a",
+            storageBucket: "study-firebase-8689a.firebasestorage.app",
+            messagingSenderId: "10788250863",
+            appId: "1:10788250863:web:c9af5b8f339c1ba4eda71a",
+            measurementId: "G-7GQ9437B1W"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // Global variables
+        let currentUser = null;
+        let allLoans = [];
+        let allWishes = [];
+        let currentLoanForPayment = null;
+        let charts = {};
+
+        // Motivational quotes
+        const motivationalQuotes = [
+            "Every payment brings you closer to financial freedom!",
+            "Small steps lead to big financial victories!",
+            "Discipline today creates wealth tomorrow!",
+            "Your consistency is your financial superpower!",
+            "Every rupee saved is a rupee earned!"
+        ];
+
+        const healthTips = {
+            fruits: [
+                "Eat seasonal fruits daily for better health and energy!",
+                "Apples and oranges are rich in vitamin C and fiber!",
+                "Bananas provide quick energy and potassium!",
+                "Pomegranates are great for heart health!"
+            ],
+            hydration: [
+                "Drink 8-10 glasses of water daily for optimal health!",
+                "Start your day with a glass of warm water!",
+                "Add lemon to water for extra vitamin C!",
+                "Coconut water is nature's sports drink!"
+            ],
+            meditation: [
+                "Take 5 minutes daily for mindfulness and mental peace!",
+                "Deep breathing helps reduce financial stress!",
+                "Practice gratitude for what you have today!",
+                "Meditation improves focus and decision-making!"
+            ]
+        };
+
+        // DOM elements
+        const loadingEl = document.getElementById('loading');
+        const loginScreenEl = document.getElementById('loginScreen');
+        const appScreenEl = document.getElementById('appScreen');
+        const googleSignInBtn = document.getElementById('googleSignIn');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const userEmailEl = document.getElementById('userEmail');
+
+        // Authentication state listener
+        onAuthStateChanged(auth, (user) => {
+            loadingEl.classList.add('hidden');
+            if (user) {
+                currentUser = user;
+                userEmailEl.textContent = user.email;
+                loginScreenEl.classList.add('hidden');
+                appScreenEl.classList.remove('hidden');
+                loadAllData();
+                updateMotivationalContent();
+                setInterval(updateMotivationalContent, 30000);
+            } else {
+                currentUser = null;
+                appScreenEl.classList.add('hidden');
+                loginScreenEl.classList.remove('hidden');
+            }
+        });
+
+        // Authentication handlers
+        googleSignInBtn.addEventListener('click', async () => {
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error('Sign in error:', error);
+                alert('Sign in failed. Please try again.');
+            }
+        });
+
+        signOutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error('Sign out error:', error);
+            }
+        });
+
+        // Tab Navigation
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                switchTab(tabName);
+            });
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.getElementById(`${tabName}Tab`).classList.remove('hidden');
+        }
+
+        // Update motivational content
+        function updateMotivationalContent() {
+            document.getElementById('motivationalQuote').textContent = 
+                motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
+            
+            document.getElementById('fruitTip').textContent = 
+                healthTips.fruits[Math.floor(Math.random() * healthTips.fruits.length)];
+            
+            document.getElementById('hydrationTip').textContent = 
+                healthTips.hydration[Math.floor(Math.random() * healthTips.hydration.length)];
+            
+            document.getElementById('meditationTip').textContent = 
+                healthTips.meditation[Math.floor(Math.random() * healthTips.meditation.length)];
+        }
+
+        // Loan type change handler
+        document.getElementById('loanType').addEventListener('change', function() {
+            const type = this.value;
+            const fields = ['emiFields', 'fixedTotalFields', 'interestOnlyFields', 'informalFields'];
+            
+            fields.forEach(field => document.getElementById(field).classList.add('hidden'));
+            
+            switch(type) {
+                case 'emi':
+                    document.getElementById('emiFields').classList.remove('hidden');
+                    break;
+                case 'fixed_total':
+                    document.getElementById('fixedTotalFields').classList.remove('hidden');
+                    break;
+                case 'interest_only':
+                    document.getElementById('interestOnlyFields').classList.remove('hidden');
+                    break;
+                case 'informal':
+                    document.getElementById('informalFields').classList.remove('hidden');
+                    break;
+            }
+        });
+
+        // Load all data
+        async function loadAllData() {
+            try {
+                // Load loans
+                const loansQuery = query(
+                    collection(db, 'users', currentUser.uid, 'loans'),
+                    orderBy('createdAt', 'desc')
+                );
+                const loansSnapshot = await getDocs(loansQuery);
+                allLoans = [];
+                loansSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    allLoans.push({
+                        id: doc.id,
+                        ...data,
+                        createdAt: data.createdAt.toDate(),
+                        payments: data.payments ? data.payments.map(p => ({
+                            ...p,
+                            date: p.date.toDate()
+                        })) : []
+                    });
+                });
+
+                // Load wishes
+                const wishesQuery = query(
+                    collection(db, 'users', currentUser.uid, 'wishes'),
+                    orderBy('createdAt', 'desc')
+                );
+                const wishesSnapshot = await getDocs(wishesQuery);
+                allWishes = [];
+                wishesSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    allWishes.push({
+                        id: doc.id,
+                        ...data,
+                        createdAt: data.createdAt.toDate(),
+                        savings: data.savings ? data.savings.map(s => ({
+                            ...s,
+                            date: s.date.toDate()
+                        })) : []
+                    });
+                });
+
+                updateDashboard();
+                updateLoansDisplay();
+                updateWishlistDisplay();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        // Global functions for onclick handlers
+        window.saveLoan = async function() {
+            const type = document.getElementById('loanType').value;
+            const name = document.getElementById('loanName').value.trim();
+            const principal = parseFloat(document.getElementById('principalAmount').value);
+            const dueDate = parseInt(document.getElementById('dueDate').value);
+
+            if (!name || !principal) {
+                alert('Please fill in loan name and principal amount.');
+                return;
+            }
+
+            let loan = {
+                name,
+                type,
+                principalAmount: principal,
+                dueDate,
+                createdAt: new Date(),
+                payments: [],
+                isActive: true
+            };
+
+            // Add type-specific fields
+            switch(type) {
+                case 'emi':
+                    const emi = parseFloat(document.getElementById('monthlyEMI').value);
+                    const rate = parseFloat(document.getElementById('interestRate').value);
+                    if (!emi || !rate) {
+                        alert('Please fill EMI and interest rate.');
+                        return;
+                    }
+                    loan.monthlyEMI = emi;
+                    loan.interestRate = rate;
+                    loan.remainingAmount = principal;
+                    break;
+
+                case 'fixed_total':
+                    const total = parseFloat(document.getElementById('totalToPay').value);
+                    if (!total) {
+                        alert('Please fill total amount to pay.');
+                        return;
+                    }
+                    loan.totalToPay = total;
+                    loan.remainingAmount = total;
+                    break;
+
+                case 'interest_only':
+                    const interest = parseFloat(document.getElementById('monthlyInterest').value);
+                    if (!interest) {
+                        alert('Please fill monthly interest amount.');
+                        return;
+                    }
+                    loan.monthlyInterest = interest;
+                    loan.remainingAmount = principal;
+                    break;
+
+                case 'informal':
+                    const payment = parseFloat(document.getElementById('informalPayment').value);
+                    if (!payment) {
+                        alert('Please fill monthly payment amount.');
+                        return;
+                    }
+                    loan.informalPayment = payment;
+                    loan.remainingAmount = principal;
+                    break;
+            }
+
+            try {
+                await addDoc(collection(db, 'users', currentUser.uid, 'loans'), loan);
+                clearLoanForm();
+                loadAllData();
+                alert('Loan added successfully!');
+            } catch (error) {
+                console.error('Error saving loan:', error);
+                alert('Failed to save loan.');
+            }
+        };
+
+        window.showPaymentForm = function(loanId) {
+            currentLoanForPayment = loanId;
+            const loan = allLoans.find(l => l.id === loanId);
+            
+            // Set default payment amount
+            let defaultAmount = 0;
+            switch(loan.type) {
+                case 'emi': defaultAmount = loan.monthlyEMI; break;
+                case 'interest_only': defaultAmount = loan.monthlyInterest; break;
+                case 'informal': defaultAmount = loan.informalPayment; break;
+            }
+            
+            document.getElementById('paymentAmount').value = defaultAmount;
+            document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('paymentSection').classList.remove('hidden');
+            
+            // Scroll to payment section
+            document.getElementById('paymentSection').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        window.recordPayment = async function() {
+            if (!currentLoanForPayment) return;
+
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const date = document.getElementById('paymentDate').value;
+
+            if (!amount || !date) {
+                alert('Please fill payment amount and date.');
+                return;
+            }
+
+            const loan = allLoans.find(l => l.id === currentLoanForPayment);
+            if (!loan) return;
+
+            const payment = {
+                amount,
+                date: new Date(date)
+            };
+
+            loan.payments.push(payment);
+
+            // Update remaining amount based on loan type
+            switch(loan.type) {
+                case 'emi':
+                    const interest = loan.remainingAmount * (loan.interestRate / 100);
+                    const principal = Math.max(0, amount - interest);
+                    loan.remainingAmount = Math.max(0, loan.remainingAmount - principal);
+                    break;
+                case 'fixed_total':
+                case 'informal':
+                    loan.remainingAmount = Math.max(0, loan.remainingAmount - amount);
+                    break;
+                case 'interest_only':
+                    if (amount > loan.monthlyInterest) {
+                        loan.remainingAmount = Math.max(0, loan.remainingAmount - (amount - loan.monthlyInterest));
+                    }
+                    break;
+            }
+
+            try {
+                await updateDoc(doc(db, 'users', currentUser.uid, 'loans', loan.id), {
+                    payments: loan.payments,
+                    remainingAmount: loan.remainingAmount
+                });
+                cancelPayment();
+                loadAllData();
+                alert('Payment recorded successfully!');
+            } catch (error) {
+                console.error('Error recording payment:', error);
+                alert('Failed to record payment.');
+            }
+        };
+
+        window.cancelPayment = function() {
+            document.getElementById('paymentSection').classList.add('hidden');
+            currentLoanForPayment = null;
+        };
+
+        window.saveWish = async function() {
+            const name = document.getElementById('wishName').value.trim();
+            const price = parseFloat(document.getElementById('wishPrice').value);
+
+            if (!name || !price) {
+                alert('Please fill in goal name and target price.');
+                return;
+            }
+
+            const wish = {
+                name,
+                targetPrice: price,
+                createdAt: new Date(),
+                savings: []
+            };
+
+            try {
+                await addDoc(collection(db, 'users', currentUser.uid, 'wishes'), wish);
+                clearWishForm();
+                loadAllData();
+                alert('Goal added successfully!');
+            } catch (error) {
+                console.error('Error saving wish:', error);
+                alert('Failed to save wish.');
+            }
+        };
+
+        let currentWishForSaving = null;
+
+        window.showSavingForm = function(wishId) {
+            currentWishForSaving = wishId;
+            document.getElementById('savingAmount').value = '';
+            document.getElementById('savingDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('savingSection').classList.remove('hidden');
+            document.getElementById('savingSection').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        window.recordSaving = async function() {
+            if (!currentWishForSaving) return;
+
+            const amount = parseFloat(document.getElementById('savingAmount').value);
+            const date = document.getElementById('savingDate').value;
+
+            if (!amount || !date) {
+                alert('Please fill saving amount and date.');
+                return;
+            }
+
+            const wish = allWishes.find(w => w.id === currentWishForSaving);
+            if (!wish) return;
+
+            const saving = {
+                amount,
+                date: new Date(date)
+            };
+
+            wish.savings.push(saving);
+
+            try {
+                await updateDoc(doc(db, 'users', currentUser.uid, 'wishes', wish.id), {
+                    savings: wish.savings
+                });
+                cancelSaving();
+                loadAllData();
+                alert('Saving recorded successfully!');
+            } catch (error) {
+                console.error('Error recording saving:', error);
+                alert('Failed to record saving.');
+            }
+        };
+
+        window.cancelSaving = function() {
+            document.getElementById('savingSection').classList.add('hidden');
+            currentWishForSaving = null;
+        };
+
+        // Update dashboard
+        function updateDashboard() {
+            const activeLoans = allLoans.filter(loan => loan.isActive);
+            
+            // Calculate totals
+            const totalOutstanding = activeLoans.reduce((sum, loan) => sum + loan.remainingAmount, 0);
+            
+            const totalMonthlyPayment = activeLoans.reduce((sum, loan) => {
+                switch(loan.type) {
+                    case 'emi': return sum + loan.monthlyEMI;
+                    case 'interest_only': return sum + loan.monthlyInterest;
+                    case 'informal': return sum + loan.informalPayment;
+                    default: return sum;
+                }
+            }, 0);
+
+            // Calculate this month payments
+            const thisMonth = new Date();
+            const thisMonthPaid = activeLoans.reduce((sum, loan) => {
+                return sum + loan.payments
+                    .filter(p => {
+                        const paymentDate = new Date(p.date);
+                        return paymentDate.getMonth() === thisMonth.getMonth() && 
+                               paymentDate.getFullYear() === thisMonth.getFullYear();
+                    })
+                    .reduce((monthSum, p) => monthSum + p.amount, 0);
+            }, 0);
+
+            // Update UI
+            document.getElementById('totalDebt').textContent = `₹${totalOutstanding.toLocaleString()}`;
+            document.getElementById('totalMonthlyPayment').textContent = `₹${totalMonthlyPayment.toLocaleString()}`;
+            document.getElementById('thisMonthPaid').textContent = `₹${thisMonthPaid.toLocaleString()}`;
+            document.getElementById('activeLoansCount').textContent = activeLoans.length;
+
+            updateLoanProgress();
+            updateLoanDistributionChart();
+            updatePaymentTimelineChart();
+        }
+
+        // Update loan progress
+        function updateLoanProgress() {
+            const progressSection = document.getElementById('loanProgressSection');
+            const activeLoans = allLoans.filter(loan => loan.isActive);
+
+            if (activeLoans.length === 0) {
+                progressSection.innerHTML = '<p class="text-gray-500">Add loans to see progress tracking</p>';
+                return;
+            }
+
+            let html = '';
+            activeLoans.forEach(loan => {
+                const totalAmount = loan.type === 'fixed_total' ? loan.totalToPay : loan.principalAmount;
+                const progress = loan.type === 'interest_only' ? 0 : 
+                    ((totalAmount - loan.remainingAmount) / totalAmount) * 100;
+
+                html += `
+                    <div class="border rounded-lg p-4 mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-medium text-gray-900">${loan.name}</h4>
+                            <span class="text-sm text-gray-500">${progress.toFixed(1)}% paid</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                            <div class="bg-green-600 h-2 rounded-full progress-bar" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>Remaining: ₹${loan.remainingAmount.toLocaleString()}</span>
+                            <span>Due: ${loan.dueDate}${getOrdinal(loan.dueDate)}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            progressSection.innerHTML = html;
+        }
+
+        // Chart Functions
+        function updateLoanDistributionChart() {
+            const ctx = document.getElementById('loanDistributionChart').getContext('2d');
+            
+            if (charts.loanDistribution) {
+                charts.loanDistribution.destroy();
+            }
+
+            const activeLoans = allLoans.filter(loan => loan.isActive);
+            if (activeLoans.length === 0) {
+                return;
+            }
+
+            const data = activeLoans.map(loan => ({
+                name: loan.name,
+                amount: loan.remainingAmount
+            }));
+
+            charts.loanDistribution = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.name),
+                    datasets: [{
+                        data: data.map(d => d.amount),
+                        backgroundColor: [
+                            '#0078D4', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+                            '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePaymentTimelineChart() {
+            const ctx = document.getElementById('paymentTimelineChart').getContext('2d');
+            
+            if (charts.paymentTimeline) {
+                charts.paymentTimeline.destroy();
+            }
+
+            const activeLoans = allLoans.filter(loan => loan.isActive);
+            if (activeLoans.length === 0) {
+                return;
+            }
+
+            // Create timeline data for next 12 months
+            const months = [];
+            const currentDate = new Date();
+            
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+                months.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+            }
+
+            const datasets = activeLoans.map((loan, index) => {
+                let monthlyAmount = 0;
+                switch(loan.type) {
+                    case 'emi': monthlyAmount = loan.monthlyEMI; break;
+                    case 'interest_only': monthlyAmount = loan.monthlyInterest; break;
+                    case 'informal': monthlyAmount = loan.informalPayment; break;
+                }
+                
+                return {
+                    label: loan.name,
+                    data: months.map(() => monthlyAmount),
+                    backgroundColor: [
+                        '#0078D4', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'
+                    ][index % 5],
+                    stack: 'payments'
+                };
+            });
+
+            charts.paymentTimeline = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update loans display
+        function updateLoansDisplay() {
+            const loansGrid = document.getElementById('loansGrid');
+            
+            if (allLoans.length === 0) {
+                loansGrid.innerHTML = '<div class="text-center py-12 text-gray-500">No loans added yet. Use the form on the left to add your first loan.</div>';
+                return;
+            }
+
+            let html = '';
+            allLoans.forEach(loan => {
+                const totalPaid = loan.payments.reduce((sum, p) => sum + p.amount, 0);
+                const totalAmount = loan.type === 'fixed_total' ? loan.totalToPay : loan.principalAmount;
+                const progress = loan.type === 'interest_only' ? 0 : 
+                    ((totalAmount - loan.remainingAmount) / totalAmount) * 100;
+
+                let monthlyPayment = 'Variable';
+                switch(loan.type) {
+                    case 'emi': monthlyPayment = `₹${loan.monthlyEMI.toLocaleString()}`; break;
+                    case 'interest_only': monthlyPayment = `₹${loan.monthlyInterest.toLocaleString()}`; break;
+                    case 'informal': monthlyPayment = `₹${loan.informalPayment.toLocaleString()}`; break;
+                }
+
+                html += `
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">${loan.name}</h3>
+                                <p class="text-sm text-gray-500">${getLoanTypeDisplay(loan.type)}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="showPaymentForm('${loan.id}')" class="text-green-600 hover:text-green-800 text-sm bg-green-50 px-3 py-1 rounded">
+                                    Add Payment
+                                </button>
+                                <button onclick="deleteLoan('${loan.id}')" class="text-red-600 hover:text-red-800 text-sm bg-red-50 px-3 py-1 rounded">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Principal:</span>
+                                <span class="font-medium">₹${loan.principalAmount.toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Remaining:</span>
+                                <span class="font-medium text-red-600">₹${loan.remainingAmount.toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Monthly Payment:</span>
+                                <span class="font-medium">${monthlyPayment}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Total Paid:</span>
+                                <span class="font-medium text-green-600">₹${totalPaid.toLocaleString()}</span>
+                            </div>
+                            
+                            ${loan.type !== 'interest_only' ? `
+                            <div class="mt-4">
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-500">Progress:</span>
+                                    <span class="font-medium">${progress.toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-green-600 h-2 rounded-full progress-bar" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            loansGrid.innerHTML = html;
+        }
+
+        // Update wishlist display
+        function updateWishlistDisplay() {
+            const wishlistGrid = document.getElementById('wishlistGrid');
+            
+            if (allWishes.length === 0) {
+                wishlistGrid.innerHTML = '<div class="text-center py-12 text-gray-500 col-span-full">No goals set yet. Start saving for something special!</div>';
+                return;
+            }
+
+            let html = '';
+            allWishes.forEach(wish => {
+                const totalSaved = wish.savings.reduce((sum, s) => sum + s.amount, 0);
+                const progress = (totalSaved / wish.targetPrice) * 100;
+                const remaining = Math.max(0, wish.targetPrice - totalSaved);
+
+                html += `
+                    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-400">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center">
+                                <span class="text-red-500 text-lg mr-2">❤️</span>
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900">${wish.name}</h3>
+                                    <p class="text-sm text-gray-500">Target: ₹${wish.targetPrice.toLocaleString()}</p>
+                                </div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="showSavingForm('${wish.id}')" class="text-green-600 hover:text-green-800 text-sm bg-green-50 px-3 py-1 rounded">
+                                    Add Saving
+                                </button>
+                                <button onclick="deleteWish('${wish.id}')" class="text-red-600 hover:text-red-800 text-sm bg-red-50 px-3 py-1 rounded">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Total Saved:</span>
+                                <span class="font-medium text-green-600">₹${totalSaved.toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Remaining:</span>
+                                <span class="font-medium text-red-600">₹${remaining.toLocaleString()}</span>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-500">Progress:</span>
+                                    <span class="font-medium">${Math.min(100, progress).toFixed(1)}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-3">
+                                    <div class="bg-gradient-to-r from-pink-400 to-red-500 h-3 rounded-full progress-bar" style="width: ${Math.min(100, progress)}%"></div>
+                                </div>
+                            </div>
+
+                            ${progress >= 100 ? '<div class="bg-green-50 border border-green-200 rounded p-2 text-center text-green-800 font-semibold text-sm mt-4">🎉 Goal Achieved! Time to buy! 🎉</div>' : ''}
+                            
+                            ${wish.savings.length > 0 ? `
+                            <div class="mt-4">
+                                <p class="text-xs text-gray-500 mb-2">Recent Savings:</p>
+                                <div class="space-y-1 max-h-20 overflow-y-auto">
+                                    ${wish.savings.slice(-3).reverse().map(saving => `
+                                        <div class="flex justify-between text-xs bg-gray-50 px-2 py-1 rounded">
+                                            <span>₹${saving.amount.toLocaleString()}</span>
+                                            <span class="text-gray-500">${new Date(saving.date).toLocaleDateString()}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            wishlistGrid.innerHTML = html;
+        }
+
+        // Clear All functions
+        window.clearAllLoans = async function() {
+            if (!confirm('Are you sure you want to delete ALL loans? This action cannot be undone.')) return;
+            
+            try {
+                const loansQuery = query(collection(db, 'users', currentUser.uid, 'loans'));
+                const loansSnapshot = await getDocs(loansQuery);
+                
+                const deletePromises = [];
+                loansSnapshot.forEach(doc => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                
+                await Promise.all(deletePromises);
+                allLoans = [];
+                updateDashboard();
+                updateLoansDisplay();
+                alert('All loans have been deleted successfully!');
+            } catch (error) {
+                console.error('Error clearing loans:', error);
+                alert('Failed to clear loans.');
+            }
+        };
+
+        window.clearAllWishes = async function() {
+            if (!confirm('Are you sure you want to delete ALL wishes? This action cannot be undone.')) return;
+            
+            try {
+                const wishesQuery = query(collection(db, 'users', currentUser.uid, 'wishes'));
+                const wishesSnapshot = await getDocs(wishesQuery);
+                
+                const deletePromises = [];
+                wishesSnapshot.forEach(doc => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                
+                await Promise.all(deletePromises);
+                allWishes = [];
+                updateWishlistDisplay();
+                alert('All wishes have been deleted successfully!');
+            } catch (error) {
+                console.error('Error clearing wishes:', error);
+                alert('Failed to clear wishes.');
+            }
+        };
+
+        // Delete functions
+        window.deleteLoan = async function(loanId) {
+            if (!confirm('Are you sure you want to delete this loan?')) return;
+            
+            try {
+                await deleteDoc(doc(db, 'users', currentUser.uid, 'loans', loanId));
+                loadAllData();
+            } catch (error) {
+                console.error('Error deleting loan:', error);
+                alert('Failed to delete loan.');
+            }
+        };
+
+        window.deleteWish = async function(wishId) {
+            if (!confirm('Are you sure you want to delete this goal?')) return;
+            
+            try {
+                await deleteDoc(doc(db, 'users', currentUser.uid, 'wishes', wishId));
+                loadAllData();
+            } catch (error) {
+                console.error('Error deleting wish:', error);
+                alert('Failed to delete wish.');
+            }
+        };
+
+        // Utility functions
+        function clearLoanForm() {
+            document.getElementById('loanName').value = '';
+            document.getElementById('principalAmount').value = '';
+            document.getElementById('monthlyEMI').value = '';
+            document.getElementById('interestRate').value = '';
+            document.getElementById('totalToPay').value = '';
+            document.getElementById('monthlyInterest').value = '';
+            document.getElementById('informalPayment').value = '';
+        }
+
+        function clearWishForm() {
+            document.getElementById('wishName').value = '';
+            document.getElementById('wishPrice').value = '';
+        }
+
+        function getLoanTypeDisplay(type) {
+            switch(type) {
+                case 'emi': return 'EMI Loan';
+                case 'fixed_total': return 'Fixed Total';
+                case 'interest_only': return 'Interest Only';
+                case 'informal': return 'Informal Loan';
+                default: return 'Unknown';
+            }
+        }
+
+        function getOrdinal(number) {
+            const suffixes = ['th', 'st', 'nd', 'rd'];
+            const v = number % 100;
+            return suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0];
+        }
+
+        // Initialize
+        switchTab('dashboard');
+    </script>
+</body>
+</html>
