@@ -477,63 +477,91 @@
 
         // Authentication state listener
         onAuthStateChanged(auth, async (user) => {
-            loadingEl.classList.add('hidden');
-            if (user) {
-                currentUser = user;
-                loginScreenEl.classList.add('hidden');
-                appScreenEl.classList.remove('hidden');
+            console.log('Auth state changed:', user ? 'User logged in' : 'No user');
+            
+            try {
+                loadingEl.classList.add('hidden');
                 
-                // Add sign out button to header
-                const headerDiv = document.querySelector('header .flex.items-center.space-x-4');
-                if (!document.getElementById('signOutBtn')) {
-                    const signOutBtn = document.createElement('button');
-                    signOutBtn.id = 'signOutBtn';
-                    signOutBtn.className = 'text-sm text-primary hover:text-primary-dark';
-                    signOutBtn.textContent = 'Sign Out';
-                    signOutBtn.addEventListener('click', async () => {
-                        try {
-                            await signOut(auth);
-                        } catch (error) {
-                            console.error('Sign out error:', error);
-                        }
-                    });
+                if (user) {
+                    console.log('Loading user data...');
+                    currentUser = user;
+                    loginScreenEl.classList.add('hidden');
+                    appScreenEl.classList.remove('hidden');
                     
-                    const userSpan = document.createElement('span');
-                    userSpan.className = 'text-sm text-gray-600';
-                    userSpan.textContent = user.email;
+                    // Add sign out button to header
+                    const headerDiv = document.querySelector('header .flex.items-center.space-x-4');
+                    if (!document.getElementById('signOutBtn')) {
+                        const signOutBtn = document.createElement('button');
+                        signOutBtn.id = 'signOutBtn';
+                        signOutBtn.className = 'text-sm text-primary hover:text-primary-dark';
+                        signOutBtn.textContent = 'Sign Out';
+                        signOutBtn.addEventListener('click', async () => {
+                            try {
+                                await signOut(auth);
+                            } catch (error) {
+                                console.error('Sign out error:', error);
+                            }
+                        });
+                        
+                        const userSpan = document.createElement('span');
+                        userSpan.className = 'text-sm text-gray-600';
+                        userSpan.textContent = user.email;
+                        
+                        headerDiv.appendChild(userSpan);
+                        headerDiv.appendChild(signOutBtn);
+                    }
                     
-                    headerDiv.appendChild(userSpan);
-                    headerDiv.appendChild(signOutBtn);
+                    await loadFirebaseData();
+                    updateMotivationalQuote();
+                    updateWellnessTips();
+                    setInterval(updateMotivationalQuote, 30000);
+                    console.log('App loaded successfully');
+                } else {
+                    currentUser = null;
+                    appScreenEl.classList.add('hidden');
+                    loginScreenEl.classList.remove('hidden');
+                    
+                    // Remove sign out button if exists
+                    const signOutBtn = document.getElementById('signOutBtn');
+                    if (signOutBtn) signOutBtn.remove();
                 }
-                
-                await loadFirebaseData();
-                updateMotivationalQuote();
-                updateWellnessTips();
-                setInterval(updateMotivationalQuote, 30000);
-            } else {
-                currentUser = null;
-                appScreenEl.classList.add('hidden');
-                loginScreenEl.classList.remove('hidden');
-                
-                // Remove sign out button if exists
-                const signOutBtn = document.getElementById('signOutBtn');
-                if (signOutBtn) signOutBtn.remove();
+            } catch (error) {
+                console.error('Auth state change error:', error);
+                loadingEl.classList.add('hidden');
+                alert('Error loading app. Please refresh the page.');
             }
         });
 
         // Authentication handlers
         googleSignInBtn.addEventListener('click', async () => {
+            console.log('Sign in button clicked');
+            loadingEl.classList.remove('hidden');
+            
             try {
-                await signInWithPopup(auth, provider);
+                const result = await signInWithPopup(auth, provider);
+                console.log('Sign in successful:', result.user.email);
             } catch (error) {
                 console.error('Sign in error:', error);
-                alert('Sign in failed. Please try again.');
+                loadingEl.classList.add('hidden');
+                
+                // Show more specific error messages
+                let errorMessage = 'Sign in failed. ';
+                if (error.code === 'auth/popup-closed-by-user') {
+                    errorMessage += 'The popup was closed before completing sign in.';
+                } else if (error.code === 'auth/popup-blocked') {
+                    errorMessage += 'Popup was blocked by the browser. Please allow popups and try again.';
+                } else {
+                    errorMessage += 'Please try again.';
+                }
+                alert(errorMessage);
             }
         });
 
         // Firebase data management
         async function loadFirebaseData() {
             try {
+                console.log('Loading Firebase data for user:', currentUser.uid);
+                
                 // Load loans
                 const loansQuery = query(
                     collection(db, 'users', currentUser.uid, 'loans'),
@@ -559,6 +587,7 @@
                         ...loanData
                     });
                 });
+                console.log('Loaded loans:', allLoans.length);
 
                 // Load wishes
                 const wishesQuery = query(
@@ -585,12 +614,30 @@
                         ...wishData
                     });
                 });
+                console.log('Loaded wishes:', allWishes.length);
 
                 updateDashboard();
                 updateLoansGrid();
                 updateWishlistGrid();
+                console.log('Data loaded and UI updated');
             } catch (error) {
                 console.error('Load data error:', error);
+                
+                // Fallback to localStorage if Firebase fails
+                console.log('Falling back to localStorage...');
+                const savedLoans = localStorage.getItem('personalLoans');
+                const savedWishes = localStorage.getItem('personalWishes');
+
+                if (savedLoans) {
+                    allLoans = JSON.parse(savedLoans);
+                }
+                if (savedWishes) {
+                    allWishes = JSON.parse(savedWishes);
+                }
+
+                updateDashboard();
+                updateLoansGrid();
+                updateWishlistGrid();
             }
         }
 
@@ -1844,4 +1891,4 @@
 </body>
 </html>
                 
-            "
+            
