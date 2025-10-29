@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personal Loan Manager</title>
+    <title>Loan Manage</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script>
@@ -24,14 +24,6 @@
     <style>
         .chart-container { position: relative; height: 300px; }
         .progress-bar { transition: width 0.5s ease-in-out; }
-        .motivational-quote { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            animation: gradientShift 10s ease-in-out infinite alternate;
-        }
-        @keyframes gradientShift {
-            0% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-            100% { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        }
         .nav-tab {
             padding: 8px 16px;
             border-radius: 6px;
@@ -61,7 +53,7 @@
         <div class="max-w-md w-full space-y-8">
             <div>
                 <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                    Personal Loan Manager
+                    Manage Your Savings
                 </h2>
                 <p class="mt-2 text-center text-sm text-gray-600">
                     Track your loans and achieve financial freedom
@@ -105,8 +97,17 @@
         </header>
 
         <!-- Motivational Quote Bar -->
-        <div class="motivational-quote text-white text-center py-3">
-            <p id="motivationalQuote" class="text-lg font-medium">Every payment brings you closer to financial freedom!</p>
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center">
+                    <div class="flex-1 text-center">
+                        <p id="motivationalQuote" class="text-lg font-medium opacity-90">Every payment brings you closer to financial freedom!</p>
+                    </div>
+                    <div class="text-right">
+                        <div id="currentDateTime" class="text-sm font-mono bg-white bg-opacity-20 px-3 py-1 rounded-md"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Dashboard Tab -->
@@ -181,9 +182,26 @@
                     </div>
 
                     <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Interest vs Principal Over Time</h3>
+                        <div class="chart-container">
+                            <canvas id="interestPrincipalChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Payment Timeline</h3>
                         <div class="chart-container">
                             <canvas id="paymentTimelineChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Loan Balance Reduction</h3>
+                        <div class="chart-container">
+                            <canvas id="balanceReductionChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -621,6 +639,7 @@
                 appScreenEl.classList.remove('hidden');
                 loadAllData();
                 updateMotivationalContent();
+                startClock(); // Start the real-time clock
                 setInterval(updateMotivationalContent, 30000);
             } else {
                 currentUser = null;
@@ -663,7 +682,7 @@
             document.getElementById(`${tabName}Tab`).classList.remove('hidden');
         }
 
-        // Update motivational content
+        // Update motivational content and real-time clock
         function updateMotivationalContent() {
             document.getElementById('motivationalQuote').textContent = 
                 motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
@@ -676,6 +695,28 @@
             
             document.getElementById('meditationTip').textContent = 
                 healthTips.meditation[Math.floor(Math.random() * healthTips.meditation.length)];
+        }
+
+        // Real-time clock function
+        function updateClock() {
+            const now = new Date();
+            const options = {
+                weekday: 'short',
+                year: 'numeric', 
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            };
+            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', options);
+        }
+
+        // Start clock immediately and update every second
+        function startClock() {
+            updateClock();
+            setInterval(updateClock, 1000);
         }
 
         // Loan type change handler
@@ -1095,6 +1136,191 @@
                     plugins: {
                         legend: {
                             position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateInterestPrincipalChart() {
+            const ctx = document.getElementById('interestPrincipalChart').getContext('2d');
+            
+            if (charts.interestPrincipal) {
+                charts.interestPrincipal.destroy();
+            }
+
+            const activeLoans = allLoans.filter(loan => loan.isActive && loan.type === 'emi');
+            if (activeLoans.length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.fillStyle = '#6B7280';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Add EMI loans to see interest vs principal breakdown', ctx.canvas.width/2, ctx.canvas.height/2);
+                return;
+            }
+
+            // Use the first EMI loan for demonstration
+            const loan = activeLoans[0];
+            const monthlyRate = loan.interestRate / 100;
+            let balance = loan.remainingAmount;
+            
+            const months = [];
+            const interestData = [];
+            const principalData = [];
+            
+            // Calculate for next 12 months or remaining loan duration
+            for (let i = 1; i <= Math.min(12, Math.ceil(balance / (loan.monthlyEMI * 0.7))); i++) {
+                const interest = balance * monthlyRate;
+                const principal = Math.min(loan.monthlyEMI - interest, balance);
+                
+                months.push(`Month ${i}`);
+                interestData.push(interest);
+                principalData.push(principal);
+                
+                balance -= principal;
+                if (balance <= 0) break;
+            }
+
+            charts.interestPrincipal = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: 'Interest Payment',
+                            data: interestData,
+                            backgroundColor: '#EF4444',
+                            stack: 'payment'
+                        },
+                        {
+                            label: 'Principal Payment',
+                            data: principalData,
+                            backgroundColor: '#10B981',
+                            stack: 'payment'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₹' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: loan.name + ' - Monthly Breakdown'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateBalanceReductionChart() {
+            const ctx = document.getElementById('balanceReductionChart').getContext('2d');
+            
+            if (charts.balanceReduction) {
+                charts.balanceReduction.destroy();
+            }
+
+            const activeLoans = allLoans.filter(loan => loan.isActive);
+            if (activeLoans.length === 0) {
+                return;
+            }
+
+            // Create datasets for each loan showing balance reduction over time
+            const datasets = activeLoans.slice(0, 3).map((loan, index) => { // Limit to 3 loans for clarity
+                let balance = loan.remainingAmount;
+                const balanceData = [balance];
+                const months = ['Current'];
+                
+                if (loan.type === 'emi') {
+                    const monthlyRate = loan.interestRate / 100;
+                    
+                    // Project next 12 months
+                    for (let i = 1; i <= 12; i++) {
+                        const interest = balance * monthlyRate;
+                        const principal = Math.min(loan.monthlyEMI - interest, balance);
+                        balance = Math.max(0, balance - principal);
+                        
+                        balanceData.push(balance);
+                        months.push(`Month ${i}`);
+                        
+                        if (balance <= 0) break;
+                    }
+                }
+                
+                return {
+                    label: loan.name,
+                    data: balanceData,
+                    borderColor: ['#0078D4', '#10B981', '#F59E0B'][index],
+                    backgroundColor: ['#0078D4', '#10B981', '#F59E0B'][index] + '20',
+                    fill: false,
+                    tension: 0.1
+                };
+            });
+
+            // Use months from the first loan for x-axis
+            const firstLoan = activeLoans[0];
+            let maxMonths = ['Current'];
+            if (firstLoan.type === 'emi') {
+                let balance = firstLoan.remainingAmount;
+                const monthlyRate = firstLoan.interestRate / 100;
+                
+                for (let i = 1; i <= 12; i++) {
+                    const interest = balance * monthlyRate;
+                    const principal = Math.min(firstLoan.monthlyEMI - interest, balance);
+                    balance = Math.max(0, balance - principal);
+                    
+                    maxMonths.push(`Month ${i}`);
+                    if (balance <= 0) break;
+                }
+            }
+
+            charts.balanceReduction = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: maxMonths,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₹' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString();
+                                }
+                            }
                         }
                     }
                 }
