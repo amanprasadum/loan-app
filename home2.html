@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Call Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+    }
+  }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+  <!-- LOADING -->
+  <div id="loadingScreen" class="fixed inset-0 flex items-center justify-center bg-white z-50">
+    <div class="flex flex-col items-center gap-3">
+      <div class="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-gray-500 text-sm">Loading...</p>
+    </div>
+  </div>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="hidden fixed inset-0 flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 z-40">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 text-center">
+      <div class="text-5xl mb-3">📞</div>
+      <h1 class="text-2xl font-bold text-gray-900 mb-1">Call Tracker</h1>
+      <p class="text-gray-500 text-sm mb-8">Manage your calling targets in one place</p>
+      <button id="googleSignInBtn"
+        class="w-full flex items-center justify-center gap-3 border border-gray-200 rounded-xl py-3 px-4 text-gray-700 font-semibold hover:bg-gray-50 transition-all shadow-sm text-sm">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5" alt="Google" />
+        Sign in with Google
+      </button>
+      <p class="text-xs text-gray-400 mt-5">Your data is private and stored securely.</p>
+    </div>
+  </div>
+
+  <!-- APP SCREEN -->
+  <div id="appScreen" class="hidden">
+
+    <!-- TOPBAR -->
+    <header class="bg-indigo-700 text-white sticky top-0 z-30 shadow-md">
+      <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div class="flex items-center gap-2 font-bold text-lg tracking-tight">
+          <span>📞</span> Call Tracker
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex items-center gap-2">
+            <img id="userPhoto" src="" alt="" class="w-7 h-7 rounded-full hidden" />
+            <span id="userEmail" class="text-indigo-200 text-xs max-w-[180px] truncate"></span>
+          </div>
+          <button id="signOutBtn"
+            class="text-xs border border-white/30 hover:bg-white/10 rounded-lg px-3 py-1.5 transition-colors">
+            Sign Out
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- STATS BAR -->
+    <div class="max-w-7xl mx-auto px-4 pt-5">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <p class="text-xs text-gray-400 uppercase tracking-wide font-medium">Total Clients</p>
+          <p id="statTotal" class="text-2xl font-bold text-gray-900 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <p class="text-xs text-gray-400 uppercase tracking-wide font-medium">Called</p>
+          <p id="statCalled" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <p class="text-xs text-gray-400 uppercase tracking-wide font-medium">Follow Up</p>
+          <p id="statFollowUp" class="text-2xl font-bold text-indigo-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <p class="text-xs text-gray-400 uppercase tracking-wide font-medium">Not Called</p>
+          <p id="statNotCalled" class="text-2xl font-bold text-amber-500 mt-1">0</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="max-w-7xl mx-auto px-4 pt-5 pb-12 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5">
+
+      <!-- ADD CLIENT FORM -->
+      <aside class="lg:sticky lg:top-20 h-fit">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h2 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span class="w-5 h-5 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold">+</span>
+            Add New Client
+          </h2>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Client Name <span class="text-red-400">*</span></label>
+              <input id="fName" type="text" placeholder="e.g. Rahul Sharma"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Phone Number <span class="text-red-400">*</span></label>
+              <input id="fPhone" type="tel" placeholder="e.g. 9876543210"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Website URL</label>
+              <input id="fWebsite" type="url" placeholder="https://example.com"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Call Status</label>
+              <select id="fStatus"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition bg-white">
+                <option value="not_called">Not Called</option>
+                <option value="called">Called</option>
+                <option value="follow_up">Follow Up</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1">Remarks / Notes</label>
+              <textarea id="fRemarks" rows="3" placeholder="Any notes about this client..."
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition resize-none"></textarea>
+            </div>
+            <button id="addClientBtn"
+              class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-xl py-2.5 text-sm transition-all">
+              Add Client
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CLIENT LIST -->
+      <main>
+        <div class="flex flex-wrap gap-2 mb-4">
+          <input id="searchInput" type="text" placeholder="Search by name or phone..."
+            class="flex-1 min-w-[180px] border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition bg-white shadow-sm" />
+          <select id="filterStatus"
+            class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white shadow-sm transition">
+            <option value="all">All Status</option>
+            <option value="not_called">Not Called</option>
+            <option value="called">Called</option>
+            <option value="follow_up">Follow Up</option>
+          </select>
+          <button id="clearAllBtn"
+            class="border border-red-200 text-red-500 hover:bg-red-50 rounded-xl px-4 py-2 text-xs font-semibold transition">
+            Clear All
+          </button>
+        </div>
+        <div id="clientsContainer"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div id="editModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
+      <h3 class="text-base font-bold text-gray-800 mb-4">Edit Client</h3>
+      <input id="editId" type="hidden" />
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Client Name</label>
+          <input id="editName" type="text"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Phone Number</label>
+          <input id="editPhone" type="tel"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Website URL</label>
+          <input id="editWebsite" type="url"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Call Status</label>
+          <select id="editStatus"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white transition">
+            <option value="not_called">Not Called</option>
+            <option value="called">Called</option>
+            <option value="follow_up">Follow Up</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1">Remarks / Notes</label>
+          <textarea id="editRemarks" rows="3"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition resize-none"></textarea>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-5">
+        <button id="cancelEditBtn"
+          class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl py-2.5 text-sm transition">
+          Cancel
+        </button>
+        <button id="saveEditBtn"
+          class="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl py-2.5 text-sm transition">
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "firebase/app";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAk9S7FKg8_fJ7ubU2CRousfQmEozgxTQo",
+      authDomain: "study-firebase-8689a.firebaseapp.com",
+      projectId: "study-firebase-8689a",
+      storageBucket: "study-firebase-8689a.firebasestorage.app",
+      messagingSenderId: "10788250863",
+      appId: "1:10788250863:web:c9af5b8f339c1ba4eda71a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    let currentUser = null;
+    let allClients = [];
+
+    const $ = id => document.getElementById(id);
+
+    // AUTH
+    onAuthStateChanged(auth, user => {
+      $('loadingScreen').classList.add('hidden');
+      if (user) {
+        currentUser = user;
+        $('userEmail').textContent = user.email;
+        const photo = $('userPhoto');
+        if (user.photoURL) { photo.src = user.photoURL; photo.classList.remove('hidden'); }
+        $('loginScreen').classList.add('hidden');
+        $('appScreen').classList.remove('hidden');
+        loadClients();
+      } else {
+        currentUser = null;
+        $('loginScreen').classList.remove('hidden');
+        $('appScreen').classList.add('hidden');
+      }
+    });
+
+    $('googleSignInBtn').addEventListener('click', async () => {
+      try { await signInWithPopup(auth, provider); }
+      catch (e) { alert('Sign-in failed. Please try again.'); }
+    });
+
+    $('signOutBtn').addEventListener('click', () => signOut(auth));
+
+    // LOAD
+    async function loadClients() {
+      try {
+        const q = query(collection(db, 'users', currentUser.uid, 'clients'), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        allClients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderClients();
+        updateStats();
+      } catch (e) { console.error(e); }
+    }
+
+    // ADD
+    $('addClientBtn').addEventListener('click', async () => {
+      const name = $('fName').value.trim();
+      const phone = $('fPhone').value.trim();
+      if (!name || !phone) { alert('Name and Phone are required.'); return; }
+
+      const client = {
+        name,
+        phone,
+        website: $('fWebsite').value.trim(),
+        status: $('fStatus').value,
+        remarks: $('fRemarks').value.trim(),
+        createdAt: serverTimestamp()
+      };
+
+      try {
+        $('addClientBtn').disabled = true;
+        $('addClientBtn').textContent = 'Adding...';
+        await addDoc(collection(db, 'users', currentUser.uid, 'clients'), client);
+        $('fName').value = ''; $('fPhone').value = '';
+        $('fWebsite').value = ''; $('fRemarks').value = '';
+        $('fStatus').value = 'not_called';
+        await loadClients();
+      } catch (e) { alert('Failed to add client.'); }
+      finally { $('addClientBtn').disabled = false; $('addClientBtn').textContent = 'Add Client'; }
+    });
+
+    // SEARCH / FILTER
+    $('searchInput').addEventListener('input', renderClients);
+    $('filterStatus').addEventListener('change', renderClients);
+
+    $('clearAllBtn').addEventListener('click', async () => {
+      if (!confirm('Delete ALL clients? This cannot be undone.')) return;
+      try {
+        const snap = await getDocs(collection(db, 'users', currentUser.uid, 'clients'));
+        await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+        allClients = [];
+        renderClients();
+        updateStats();
+      } catch (e) { alert('Failed to clear clients.'); }
+    });
+
+    // RENDER
+    function renderClients() {
+      const search = $('searchInput').value.toLowerCase();
+      const filter = $('filterStatus').value;
+
+      const filtered = allClients.filter(c => {
+        const matchSearch = c.name.toLowerCase().includes(search) || c.phone.includes(search);
+        const matchFilter = filter === 'all' || c.status === filter;
+        return matchSearch && matchFilter;
+      });
+
+      const container = $('clientsContainer');
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-16 text-gray-400">
+            <div class="text-5xl mb-3">📋</div>
+            <p class="text-base font-medium">${allClients.length === 0 ? 'No clients yet. Add your first one!' : 'No results found.'}</p>
+          </div>`;
+        return;
+      }
+
+      const statusCfg = {
+        not_called: { label: 'Not Called', cls: 'bg-amber-100 text-amber-700' },
+        called:     { label: 'Called',     cls: 'bg-green-100 text-green-700' },
+        follow_up:  { label: 'Follow Up',  cls: 'bg-indigo-100 text-indigo-700' }
+      };
+
+      container.innerHTML = filtered.map(c => {
+        const initials = c.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        const s = statusCfg[c.status] || statusCfg.not_called;
+        const dateStr = c.createdAt?.toDate
+          ? c.createdAt.toDate().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'Just now';
+
+        return `
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-3 hover:shadow-md transition-shadow">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-600 text-sm flex-shrink-0">${initials}</div>
+              <div class="min-w-0">
+                <p class="font-bold text-gray-900 text-sm truncate">${esc(c.name)}</p>
+                <a href="tel:${esc(c.phone)}" class="text-indigo-500 text-xs font-medium hover:underline">${esc(c.phone)}</a>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${s.cls}">${s.label}</span>
+              <button onclick="openEdit('${c.id}')" title="Edit"
+                class="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button onclick="deleteClient('${c.id}')" title="Delete"
+                class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          ${c.website ? `
+          <div class="mt-2 flex items-center gap-1.5 text-xs text-indigo-500 truncate">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+            </svg>
+            <a href="${esc(c.website)}" target="_blank" rel="noopener" class="hover:underline truncate">${esc(c.website)}</a>
+          </div>` : ''}
+
+          ${c.remarks ? `
+          <div class="mt-2 bg-gray-50 border-l-2 border-indigo-300 rounded-r-lg px-3 py-2 text-xs text-gray-600 leading-relaxed">
+            ${esc(c.remarks)}
+          </div>` : ''}
+
+          <p class="text-gray-400 text-xs mt-2">Added ${dateStr}</p>
+        </div>`;
+      }).join('');
+    }
+
+    // STATS
+    function updateStats() {
+      $('statTotal').textContent = allClients.length;
+      $('statCalled').textContent = allClients.filter(c => c.status === 'called').length;
+      $('statFollowUp').textContent = allClients.filter(c => c.status === 'follow_up').length;
+      $('statNotCalled').textContent = allClients.filter(c => c.status === 'not_called').length;
+    }
+
+    // DELETE
+    window.deleteClient = async function(id) {
+      if (!confirm('Delete this client?')) return;
+      try {
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'clients', id));
+        await loadClients();
+      } catch (e) { alert('Failed to delete.'); }
+    };
+
+    // EDIT
+    window.openEdit = function(id) {
+      const c = allClients.find(x => x.id === id);
+      if (!c) return;
+      $('editId').value = id;
+      $('editName').value = c.name;
+      $('editPhone').value = c.phone;
+      $('editWebsite').value = c.website || '';
+      $('editStatus').value = c.status;
+      $('editRemarks').value = c.remarks || '';
+      $('editModal').classList.remove('hidden');
+    };
+
+    $('cancelEditBtn').addEventListener('click', () => $('editModal').classList.add('hidden'));
+    $('editModal').addEventListener('click', e => {
+      if (e.target === $('editModal')) $('editModal').classList.add('hidden');
+    });
+
+    $('saveEditBtn').addEventListener('click', async () => {
+      const id = $('editId').value;
+      const name = $('editName').value.trim();
+      const phone = $('editPhone').value.trim();
+      if (!name || !phone) { alert('Name and Phone are required.'); return; }
+      try {
+        $('saveEditBtn').textContent = 'Saving...';
+        await updateDoc(doc(db, 'users', currentUser.uid, 'clients', id), {
+          name, phone,
+          website: $('editWebsite').value.trim(),
+          status: $('editStatus').value,
+          remarks: $('editRemarks').value.trim()
+        });
+        $('editModal').classList.add('hidden');
+        await loadClients();
+      } catch (e) { alert('Failed to save.'); }
+      finally { $('saveEditBtn').textContent = 'Save Changes'; }
+    });
+
+    // UTIL
+    function esc(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>
