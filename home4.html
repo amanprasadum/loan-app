@@ -314,11 +314,11 @@
       <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5">
 
         <!-- ADD FORM -->
-        <aside class="lg:sticky lg:top-20 h-fit">
-          <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px;">
-            <p class="section-title">Add New Client</p>
+        <aside class="lg:sticky lg:top-20" style="max-height:calc(100vh - 90px); display:flex; flex-direction:column;">
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px 20px 0 20px; display:flex; flex-direction:column; overflow:hidden; flex:1;">
+            <p class="section-title" style="flex-shrink:0;">Add New Client</p>
 
-            <div class="space-y-3">
+            <div class="space-y-3" style="overflow-y:auto; padding-bottom:20px; padding-right:6px; flex:1; scrollbar-width:thin; scrollbar-color:var(--border2) transparent;">
               <div>
                 <label class="label-text">Client Name <span style="color:#f87171">*</span></label>
                 <input id="fName" type="text" placeholder="e.g. Rahul Sharma" class="input-field" />
